@@ -25,7 +25,7 @@ cumList (p:rest) = (0.0,p) : cumList' p rest where
     cumList' _ [] = []
     cumList' p (q:rest) = (p,p+q) : cumList' (p+q) rest
 
--- crossover takes two lists and a place where to cut and returns the results of performing crossover into a list.
+-- crossover takes a seed and two lists, transforms the seed to a cut off point and returns the results of performing crossover into a list.
 crossover :: Int -> [a] -> [a] -> [[a]]
 crossover seed p1 p2 = let
         maxSize = max (length p1) (length p2)
@@ -50,7 +50,7 @@ mutationBinary seed p string = let
         mutation' (coinflip:restflips) (b:restbits) = error "mutationBinary ERROR: no binary string as input"
 
 -- this version of reproduction picks a reproduction result of a given size from a given population using the given seed.
---reproduction :: Int -> [(a, Int)] -> Int  -> [(a,a)]
+reproduction :: (Fractional a1, Integral b, Ord a1, Random a1) => Int -> [(a, b)] -> Int -> (a -> a1) -> [(a, a)]
 reproduction seed pop size fitnessfunction = let
         fitnesspop  = zip pop (map (fitnessfunction . fst) pop )                             -- gives a list [((organismtype, frequency), fitness)]
         totalfit    = sum $ map (\((x, freq), fit) -> fromIntegral freq * fit ) fitnesspop        -- the total fitness of the population
@@ -68,7 +68,7 @@ reproduction seed pop size fitnessfunction = let
                     then string
                     else findStrings' flip rest
 
-                    
+-- evolve runs the genetic algorithm
 evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                -- seed
                                                         -> [([Char], b)]    -- population
                                                         -> Int              -- generation size
@@ -82,8 +82,31 @@ evolve seed pop gensize nrgen mpar fitnessfunction = let
         evolve' _ pop 0 = pop
         evolve' ((s1,s2,s3):seeds) pop k = evolve' seeds (createGen (s1,s2,s3) pop gensize mpar fitnessfunction) (k-1)
 
+-- evolveVerbose runs the genetic algorithm verbosely
+evolveVerbose :: (Fractional a, Integral b, Ord a, Show b, Random a) => Int 
+                                                                        -> [([Char], b)] 
+                                                                        -> Int 
+                                                                        -> Int 
+                                                                        -> Float 
+                                                                        -> ([Char] -> a) 
+                                                                        -> IO ()
+evolveVerbose seed pop gensize nrgen mpar fitnessfunction = let 
+        seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
+    in evolve' seedsgen pop nrgen where
+        evolve' _ pop 0 = do putStrLn $ "Generation " ++ (show (nrgen)) ++ ": " ++ (show pop)
+        evolve' ((s1,s2,s3):seeds) pop k = do
+            let newGen = createGen (s1,s2,s3) pop gensize mpar fitnessfunction
+            putStrLn $ "Generation " ++ (show (nrgen - k)) ++ ": " ++ (show newGen)
+            evolve' seeds newGen (k-1)
 
 
+-- createGen is the heart of the genetic algorithm, creating a new generation from a given population (using the given parameters)
+createGen :: (Fractional a, Integral b, Num t, Ord a, Random a) => (Int, Int, Int)
+                                                                -> [([Char], b)] 
+                                                                -> Int 
+                                                                -> Float 
+                                                                -> ([Char] -> a) 
+                                                                -> [([Char], t)]
 createGen (seedPool, seedCross, seedMut) pop gensize mpar fitnessfunction = let
         pool = reproduction seedPool pop gensize fitnessfunction
         seedscross = take gensize (randoms $ mkStdGen seedCross)
@@ -94,8 +117,8 @@ createGen (seedPool, seedCross, seedMut) pop gensize mpar fitnessfunction = let
         mutate _ [] = []
         mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
 
-
---freqRep :: (Eq a, Num t) => [a] -> [(a, t)]
+-- freqRep represents a population of individual organisms as pairs (organism type, frequency)
+freqRep :: (Eq a, Num t) => [a] -> [(a, t)]
 freqRep [] = []
 freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= org) rest) where
     count _ [] = 0
