@@ -26,8 +26,10 @@ cumList (p:rest) = (0.0,p) : cumList' p rest where
     cumList' p (q:rest) = (p,p+q) : cumList' (p+q) rest
 
 -- crossover takes two lists and a place where to cut and returns the results of performing crossover into a list.
-crossover :: [a] -> [a] -> Int -> [[a]]
-crossover p1 p2 cut = let
+crossover :: Int -> [a] -> [a] -> [[a]]
+crossover seed p1 p2 = let
+        maxSize = max (length p1) (length p2)
+        cut = seed `mod` (maxSize - 1) + 1
         (p11, p12) = splitAt cut p1
         (p21, p22) = splitAt cut p2
     in [p11 ++ p22, p21 ++ p12]
@@ -72,22 +74,23 @@ evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                -- s
                                                         -> Int              -- generation size
                                                         -> Int              -- maximum number of generations
                                                         -> Float            -- mutation parameter
-                                                        -> Int              -- organism size
                                                         -> ([Char] -> a)    -- fitness function
                                                         -> [([Char], b)]    -- population after certain number of generations
-evolve seed pop gensize nrgen mpar orgsize fitnessfunction = let
+evolve seed pop gensize nrgen mpar fitnessfunction = let
         seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = pop
-        evolve' ((s1,s2,s3):seeds) pop k = evolve' seeds (createGen (s1,s2,s3) pop gensize mpar orgsize fitnessfunction) (k-1)
+        evolve' ((s1,s2,s3):seeds) pop k = evolve' seeds (createGen (s1,s2,s3) pop gensize mpar fitnessfunction) (k-1)
 
-createGen (seedPool, seedCross, seedMut) pop gensize mpar orgsize fitnessfunction = let
+
+
+createGen (seedPool, seedCross, seedMut) pop gensize mpar fitnessfunction = let
         pool = reproduction seedPool pop gensize fitnessfunction
-        seedscross = randomRange seedCross (1,orgsize) gensize
+        seedscross = take gensize (randoms $ mkStdGen seedCross)
         seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen seedMut :: [Int]))
     in freqRep (mutate seedsmut (crossover' seedscross pool)) where
         crossover' _ [] = []
-        crossover' (s:srest) ((a,b):prest)  = (crossover a b s) ++ (crossover' srest prest)
+        crossover' (s:srest) ((a,b):prest)  = (crossover s a b) ++ (crossover' srest prest)
         mutate _ [] = []
         mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
 
