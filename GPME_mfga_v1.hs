@@ -48,12 +48,11 @@ mutationBinary seed p string = let
         mutation' (coinflip:restflips) (b:restbits) = error "mutationBinary ERROR: no binary string as input"
 
 
-fitness :: String -> Float
-fitness ('0':_) = 1
-fitness ('1':_) = 10
+fitness :: a -> Float
+fitness xs = 1
 
 -- this version of matingpool picks a mating pool of a given size from a given population using the given seed.
-matingpool :: Int -> [String] -> Int  -> [(String,String)]
+matingpool :: Int -> [a] -> Int  -> [(a,a)]
 matingpool seed pop size = let
         fitnesspop  = map fitness pop                           -- the fitness for each member of the population
         totalfit    = sum fitnesspop                            -- the total fitness of the population
@@ -64,7 +63,6 @@ matingpool seed pop size = let
     in pairUp $ findStrings coinflips popInterval where
         findStrings [] _ = []
         findStrings (f:rest) popInterval = findStrings' f popInterval : findStrings rest popInterval where
-            findStrings' f [] = []
             findStrings' f ((string,(a,b)):rest) = if b == 1
                 then if a <= f && f <= b
                     then string
@@ -73,8 +71,7 @@ matingpool seed pop size = let
                     then string
                     else findStrings' f rest
 
-evolve :: (Fractional a, Ord a, Random a) => 
-                Int -> [[Char]] -> Int -> Int -> a -> Int -> [[Char]]
+evolve :: (Fractional a, Ord a, Random a) => Int -> [[Char]] -> Int -> Int -> a -> Int -> [[Char]]
 evolve seed pop gensize nrgen mpar orgsize = let
         seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
