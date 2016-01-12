@@ -130,16 +130,11 @@ smallpopulation = ["11111", "00000"]
 mediumpopulation :: [String]
 mediumpopulation = (replicate 10 "11111") ++ (replicate 10 "11100") ++ (replicate 10 "00011") ++ (replicate 10 "00000") ++ (replicate 10 "00110")
 
-bittofloat :: Char -> Float
-bittofloat x
-    | x == '1' = 1.0
-    | x == '0' = 0.0
-    | otherwise = error "error: no bit as input to bittofloat"
-
 bitstringtofloat :: [Char] -> Float
 bitstringtofloat xs = bitstringtofloat' xs (length xs) where
    bitstringtofloat' [] _ = 0
    bitstringtofloat' (x:xs) count = (bittofloat x)*2^(count-1) + (bitstringtofloat' xs (count-1))
+   bittofloat x = if x == '1' then 1.0 else 0.0
 
 fitnessfunctionneutral :: Num b => [a] -> [(a, b)]
 fitnessfunctionneutral xs = zip xs (replicate (length xs) 1)
