@@ -67,22 +67,31 @@ reproduction seed pop size fitnessfunction = let
                     else findStrings' flip rest
 
                     
---evolve :: (Fractional a, Ord a, Random a) => Int -> [([Char],Int)] -> Int -> Int -> a -> Int -> [([Char],Int)]
+evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                -- seed
+                                                        -> [([Char], b)]    -- population
+                                                        -> Int              -- generation size
+                                                        -> Int              -- maximum number of generations
+                                                        -> Float            -- mutation parameter
+                                                        -> Int              -- organism size
+                                                        -> ([Char] -> a)    -- fitness function
+                                                        -> [([Char], b)]    -- population after certain number of generations
 evolve seed pop gensize nrgen mpar orgsize fitnessfunction = let
         seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = pop
-        evolve' ((s1,s2,s3):seeds) pop k = let
-                pool = reproduction s1 pop gensize fitnessfunction
-                seedscross = randomRange s2 (1,orgsize) gensize
-                seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen s3 :: [Int]))
-            in evolve' seeds (freqRep (mutate seedsmut (crossover' seedscross pool))) (k-1) where
-                crossover' _ [] = []
-                crossover' (s:srest) ((a,b):prest)  = (crossover a b s) ++ (crossover' srest prest)
-                mutate _ [] = []
-                mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
+        evolve' ((s1,s2,s3):seeds) pop k = evolve' seeds (createGen (s1,s2,s3) pop gensize mpar orgsize fitnessfunction) (k-1)
 
-                
+createGen (seedPool, seedCross, seedMut) pop gensize mpar orgsize fitnessfunction = let
+        pool = reproduction seedPool pop gensize fitnessfunction
+        seedscross = randomRange seedCross (1,orgsize) gensize
+        seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen seedMut :: [Int]))
+    in freqRep (mutate seedsmut (crossover' seedscross pool)) where
+        crossover' _ [] = []
+        crossover' (s:srest) ((a,b):prest)  = (crossover a b s) ++ (crossover' srest prest)
+        mutate _ [] = []
+        mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
+
+
 --freqRep :: (Eq a, Num t) => [a] -> [(a, t)]
 freqRep [] = []
 freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= org) rest) where
@@ -92,11 +101,12 @@ freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= o
         | otherwise = count x ys
 
         
--- example in use:
+-- examples to use:
 population, smallpopulation, mediumpopulation :: [(String, Int)]
 population = [("11100",100), ("00011",100)]
 smallpopulation = [("11111", 1),("00000",1)]
 mediumpopulation = [("11111", 10), ("11100",10), ("00011", 10), ("00000", 10), ("00110",10)]
+mediumpopulation' = [("01111", 10), ("11100",10), ("00011", 10), ("00000", 10), ("00110",10)]
 
 fitnessneutral :: a -> Float
 fitnessneutral organism = 1
