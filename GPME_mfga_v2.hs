@@ -27,9 +27,9 @@ cumList (p:rest) = (0.0,p) : cumList' p rest where
 
 -- crossover takes a seed and two lists, transforms the seed to a cut off point and returns the results of performing crossover into a list.
 crossover :: Int -> [a] -> [a] -> [[a]]
-crossover seed p1 p2 = let
+crossover randomnr p1 p2 = let
         maxSize = max (length p1) (length p2)
-        cut = seed `mod` (maxSize - 1) + 1
+        cut = randomnr `mod` (maxSize - 1) + 1
         (p11, p12) = splitAt cut p1
         (p21, p22) = splitAt cut p2
     in [p11 ++ p22, p21 ++ p12]
@@ -77,10 +77,10 @@ evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                -- s
                                                         -> ([Char] -> a)    -- fitness function
                                                         -> [([Char], b)]    -- population after certain number of generations
 evolve seed pop gensize nrgen mpar fitnessfunction = let
-        seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
+        seedsgen = map (`mod` 10000) (take nrgen (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = pop
-        evolve' ((s1,s2,s3):seeds) pop k = evolve' seeds (createGen (s1,s2,s3) pop gensize mpar fitnessfunction) (k-1)
+        evolve' (s:seeds) pop k = evolve' seeds (createGen s pop gensize mpar fitnessfunction) (k-1)
 
 -- evolveVerbose runs the genetic algorithm verbosely
 evolveVerbose :: (Fractional a, Integral b, Ord a, Show b, Random a) => Int 
@@ -91,23 +91,24 @@ evolveVerbose :: (Fractional a, Integral b, Ord a, Show b, Random a) => Int
                                                                         -> ([Char] -> a) 
                                                                         -> IO ()
 evolveVerbose seed pop gensize nrgen mpar fitnessfunction = let 
-        seedsgen = tripleUp $ map (`mod` 10000) (take (3*nrgen) (randoms $ mkStdGen seed :: [Int]))
+        seedsgen = map (`mod` 10000) (take nrgen (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = do putStrLn $ "Generation " ++ (show (nrgen)) ++ ": " ++ (show pop)
-        evolve' ((s1,s2,s3):seeds) pop k = do
-            let newGen = createGen (s1,s2,s3) pop gensize mpar fitnessfunction
+        evolve' (s:seeds) pop k = do
+            let newGen = createGen s pop gensize mpar fitnessfunction
             putStrLn $ "Generation " ++ (show (nrgen - k)) ++ ": " ++ (show newGen)
             evolve' seeds newGen (k-1)
 
 
 -- createGen is the heart of the genetic algorithm, creating a new generation from a given population (using the given parameters)
-createGen :: (Fractional a, Integral b, Num t, Ord a, Random a) => (Int, Int, Int)
+createGen :: (Fractional a, Integral b, Num t, Ord a, Random a) => Int
                                                                 -> [([Char], b)] 
                                                                 -> Int 
                                                                 -> Float 
                                                                 -> ([Char] -> a) 
                                                                 -> [([Char], t)]
-createGen (seedPool, seedCross, seedMut) pop gensize mpar fitnessfunction = let
+createGen seed pop gensize mpar fitnessfunction = let
+        [(seedPool, seedCross, seedMut)] = tripleUp $ map (`mod` 10000) (take 3 (randoms $ mkStdGen seed :: [Int]))
         pool = reproduction seedPool pop gensize fitnessfunction
         seedscross = take gensize (randoms $ mkStdGen seedCross)
         seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen seedMut :: [Int]))
