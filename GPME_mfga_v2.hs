@@ -59,38 +59,53 @@ mutationBinary seed p string = let
         mutation' (coinflip:restflips) (b:restbits) = error "mutationBinary ERROR: no binary string as input"
 
 -- this version of reproduction picks a reproduction result of a given size from a given population using the given seed.
-reproduction :: (Fractional a1, Integral b, Ord a1, Random a1) => Int -> [(a, b)] -> Int -> (a -> a1) -> [a]
-reproduction seed pop size fitnessfunction = let
-        fitnesspop  = zip pop (map (fitnessfunction . fst) pop )                             -- gives a list [((organismtype, frequency), fitness)]
-        totalfit    = sum $ map (\((x, freq), fit) -> fromIntegral freq * fit ) fitnesspop        -- the total fitness of the population
-        fitProb     = map (\ ((x, freq),fit) -> fromIntegral freq * fit / totalfit ) fitnesspop   -- gives a list of probabilities for each organismtype, ordered as in pop.        
-        popInterval = zip (map fst pop) (cumList fitProb)                            -- gives a list [(organismtype, interval)]
-        coinflips   = randomRange seed (0.0,1.0) size                                -- coinflips to determine the reproduction result
-    in findStrings coinflips popInterval where
-        findStrings [] _ = []
-        findStrings (flip:rest) popInterval = findStrings' flip popInterval : findStrings rest popInterval where
-            findStrings' flip ((string,(a,b)):rest) = if b == 1
-                then if a <= flip && flip <= b
-                    then string
-                    else findStrings' flip rest
-                else if a <= flip && flip < b
-                    then string
-                    else findStrings' flip rest
+{-reproduction :: (Fractional a1, Integral b, Ord a1, Random a1) => Int                       -- seed
+                                                                -> [(a, b)]                 -- population
+                                                                -> Int                      -- population/generation size
+                                                                -> (a -> a1)                -- fitness function
+                                                                -> (Int -> Int -> Bool)     -- order: > if further from 0 is fitter; < if closer to 0 is fitter
+                                                                -> [a]-}
+reproduction seed pop size fitnessfunction order = let
+        fitnesspop  = zip pop (map (fitnessfunction . fst) pop )                            -- gives a list [((organismtype, frequency), fitness)]
+        perfectlist = (filter (\((x,y),z) -> z == 0.0) fitnesspop)                            -- gives a list of perfectentities if these exist and order is <
+        in if perfectlist /= [] && order 0 1
+            then [fst $ fst $ head perfectlist]
+            else let
+                    totalfit    = if order 0 1
+                                    then sum $ map (\((x, freq), fit) -> fromIntegral freq / fit ) fitnesspop            -- the total fitness of the population, s.t.  fitness closer to 0 is better.
+                                    else sum $ map (\((x, freq), fit) -> fromIntegral freq * fit ) fitnesspop            -- the total fitness of the population, s.t.  fitness further from 0 is better.
+                    fitProb     = if order 0 1
+                                    then  map (\ ((x, freq),fit) -> fromIntegral freq / (fit * totalfit) ) fitnesspop    -- gives a list of probabilities for each organismtype, ordered as in pop, s.t. fitness further from 0 is better.  
+                                    else  map (\ ((x, freq),fit) -> fromIntegral freq * fit / totalfit ) fitnesspop      -- gives a list of probabilities for each organismtype, ordered as in pop, s.t. fitness further from 0 is better.  
+                    popInterval = zip (map fst pop) (cumList fitProb)                                                    -- gives a list [(organismtype, interval)]
+                    coinflips   = randomRange seed (0.0,1.0) size                                                        -- coinflips to determine the reproduction result
+                in findStrings coinflips popInterval where
+                    findStrings [] _ = []
+                    findStrings (flip:rest) popInterval = findStrings' flip popInterval : findStrings rest popInterval where
+                    findStrings' flip ((string,(a,b)):rest) = if b == 1
+                        then if a <= flip && flip <= b
+                                then string
+                                else findStrings' flip rest
+                        else if a <= flip && flip < b
+                                then string
+                                else findStrings' flip rest
 
 -- evolve runs the genetic algorithm
-evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                -- seed
-                                                        -> [([Char], b)]    -- population
-                                                        -> Int              -- generation size
-                                                        -> Int              -- maximum number of generations
-                                                        -> Float            -- crossover parameter
-                                                        -> Float            -- mutation parameter
-                                                        -> ([Char] -> a)    -- fitness function
-                                                        -> [([Char], b)]    -- population after certain number of generations
-evolve seed pop gensize nrgen cpar mpar fitnessfunction = let
+{-evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                     -- seed
+                                                        -> [([Char], b)]         -- population
+                                                        -> Int                   -- generation size
+                                                        -> Int                   -- maximum number of generations
+                                                        -> Float                 -- crossover parameter
+                                                        -> Float                 -- mutation parameter
+                                                        -> ([Char] -> a)         -- fitness function
+                                                        -> (Int -> Int -> Bool)  -- fitness order: > if further from 0 is fitter; < if closer to 0 is fitter
+                                                        -> [([Char], b)] -}   -- population after certain number of generations
+evolve seed pop gensize nrgen cpar mpar fitnessfunction order = let
         seedsgen = map (`mod` 10000) (take nrgen (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = pop
-        evolve' (s:seeds) pop k = evolve' seeds (createGen s pop gensize cpar mpar fitnessfunction) (k-1)
+        evolve' _ [(perfectentity,0)] k = [("Perfect entity found, " ++ perfectentity ++ ", in generation",nrgen - k - 1)]
+        evolve' (s:seeds) pop k = evolve' seeds (createGen s pop gensize cpar mpar fitnessfunction order) (k-1)
 
 -- evolveVerbose runs the genetic algorithm verbosely
 evolveVerbose :: (Fractional a, Integral b, Ord a, Show b, Random a) => Int 
@@ -100,14 +115,16 @@ evolveVerbose :: (Fractional a, Integral b, Ord a, Show b, Random a) => Int
                                                                         -> Float 
                                                                         -> Float
                                                                         -> ([Char] -> a) 
+                                                                        -> (Int -> Int -> Bool)
                                                                         -> IO ()
-evolveVerbose seed pop gensize nrgen cpar mpar fitnessfunction = let 
+evolveVerbose seed pop gensize nrgen cpar mpar fitnessfunction order = let 
         seedsgen = map (`mod` 10000) (take nrgen (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = do putStrLn $ "Generation " ++ (show (nrgen)) ++ ": " ++ (show pop)
+        evolve' _ [(perfectentity,0)] k = do putStrLn $ "Perfect entity " ++ perfectentity ++ " found in generation " ++ (show (nrgen - k - 1))
         evolve' (s:seeds) pop k = do
             putStrLn $ "Generation " ++ (show (nrgen - k)) ++ ": " ++ (show pop)
-            let newGen = createGen s pop gensize cpar mpar fitnessfunction            
+            let newGen = createGen s pop gensize cpar mpar fitnessfunction order          
             evolve' seeds newGen (k-1)
 
 
@@ -118,20 +135,24 @@ createGen :: (Fractional a, Integral b, Num t, Ord a, Random a) => Int
                                                                 -> Float 
                                                                 -> Float
                                                                 -> ([Char] -> a) 
+                                                                -> (Int -> Int -> Bool)
                                                                 -> [([Char], t)]
-createGen seed pop gensize cpar mpar fitnessfunction = let
+createGen seed pop gensize cpar mpar fitnessfunction order = let
         [(seedPool, seedCross, seedMut)] = tripleUp $ map (`mod` 10000) (take 3 (randoms $ mkStdGen seed :: [Int]))        
-        pool = reproduction seedPool pop gensize fitnessfunction          -- base for the next generation
-        sizecrossoverpool = round $ (fromIntegral gensize)*cpar - (mod' ((fromIntegral gensize)*cpar) 2)
-        crossoverpool = pairUp $ take sizecrossoverpool pool
-        clonepool = drop sizecrossoverpool pool
-        seedscross = take gensize (randoms $ mkStdGen seedCross)
-        seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen seedMut :: [Int]))
-    in freqRep (mutate seedsmut ((crossover' seedscross crossoverpool)++clonepool)) where
-        crossover' _ [] = []
-        crossover' (s:srest) ((a,b):prest)  = (crossover s a b) ++ (crossover' srest prest)
-        mutate _ [] = []
-        mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
+        pool = reproduction seedPool pop gensize fitnessfunction order         -- base for the next generation
+    in if length pool == 1 && fitnessfunction (head pool) == 0.0 && order 0 1
+            then [(head pool,0)]
+            else let        
+                    sizecrossoverpool = round $ (fromIntegral gensize)*cpar - (mod' ((fromIntegral gensize)*cpar) 2)
+                    crossoverpool = pairUp $ take sizecrossoverpool pool
+                    clonepool = drop sizecrossoverpool pool
+                    seedscross = take gensize (randoms $ mkStdGen seedCross)
+                    seedsmut = map (`mod` 10000) (take gensize (randoms $ mkStdGen seedMut :: [Int]))
+                in freqRep (mutate seedsmut ((crossover' seedscross crossoverpool)++clonepool)) where
+                    crossover' _ [] = []
+                    crossover' (s:srest) ((a,b):prest)  = (crossover s a b) ++ (crossover' srest prest)
+                    mutate _ [] = []
+                    mutate (s:srest) (o:orest) = mutationBinary s (mpar :: Float) o : mutate srest orest
 
 -- freqRep represents a population of individual organisms as pairs (organism type, frequency)
 freqRep :: (Eq a, Num t) => [a] -> [(a, t)]
@@ -144,13 +165,16 @@ freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= o
 
         
 -- examples to use:
--- Run: evolveVerbose 0 mediumpopulation' 40 100 0.5 0.001 fitnessbinaryscaled
+-- Run: evolveVerbose 0 mediumpopulation' 40 100 0.5 0.001 fitnessbinaryscaled (<)
+--          then 00000 is fittest
+-- Run: evolveVerbose 0 mediumpopulation' 40 100 0.5 0.001 fitnessbinaryscaled (>)
+--          then 11111 is fittest
 
-population, smallpopulation, mediumpopulation :: [(String, Int)]
+population, smallpopulation, mediumpopulation, mediumpopulation' :: [(String, Int)]
 population = [("11100",100), ("00011",100)]
 smallpopulation = [("11111", 1),("00000",1)]
-mediumpopulation = [("11111", 10), ("11100",10), ("00011", 10), ("00000", 10), ("00110",10)]
-mediumpopulation' = [("01111", 10), ("11100",10), ("00011", 10), ("00000", 10), ("00110",10)]
+mediumpopulation = [("10101", 10), ("11100",10), ("00011", 10), ("00000", 10), ("00110",10)]
+mediumpopulation' = [("01111", 10), ("11100",10), ("00011", 10), ("11111", 10), ("00110",10)]
 
 fitnessneutral :: a -> Float
 fitnessneutral organism = 1
@@ -163,7 +187,7 @@ fitnessbinary :: String -> Float
 fitnessbinary organism = bitstringtofloat organism
 
 fitnessbinaryscaled :: String -> Float
-fitnessbinaryscaled organism = (bitstringtofloat organism)**2
+fitnessbinaryscaled organism = ((bitstringtofloat organism)**2)
 
 bitstringtofloat :: [Char] -> Float
 bitstringtofloat xs = bitstringtofloat' xs (length xs) where
