@@ -59,15 +59,15 @@ mutationBinary seed p string = let
         mutation' (coinflip:restflips) (b:restbits) = error "mutationBinary ERROR: no binary string as input"
 
 -- this version of reproduction picks a reproduction result of a given size from a given population using the given seed.
-{-reproduction :: (Fractional a1, Integral b, Ord a1, Random a1) => Int                       -- seed
-                                                                -> [(a, b)]                 -- population
-                                                                -> Int                      -- population/generation size
-                                                                -> (a -> a1)                -- fitness function
-                                                                -> (Int -> Int -> Bool)     -- order: > if further from 0 is fitter; < if closer to 0 is fitter
-                                                                -> [a]-}
+reproduction :: (Eq t, Fractional a2, Integral b, Num a, Num a1, Ord a2, Random a2) => Int               -- seed
+                                                                                    -> [(t, b)]          -- population
+                                                                                    -> Int               -- population/generation size
+                                                                                    -> (t -> a2)         -- fitness function
+                                                                                    -> (a -> a1 -> Bool) -- order: > if further from 0 is fitter; < if closer to 0 is fitter
+                                                                                    -> [t]
 reproduction seed pop size fitnessfunction order = let
-        fitnesspop  = zip pop (map (fitnessfunction . fst) pop )                            -- gives a list [((organismtype, frequency), fitness)]
-        perfectlist = (filter (\((x,y),z) -> z == 0.0) fitnesspop)                            -- gives a list of perfectentities if these exist and order is <
+        fitnesspop  = zip pop (map (fitnessfunction . fst) pop )            -- gives a list [((organismtype, frequency), fitness)]
+        perfectlist = (filter (\((x,y),z) -> z == 0.0) fitnesspop)          -- gives a list of perfectentities if these exist and order is <
         in if perfectlist /= [] && order 0 1
             then [fst $ fst $ head perfectlist]
             else let
@@ -91,15 +91,15 @@ reproduction seed pop size fitnessfunction order = let
                                 else findStrings' flip rest
 
 -- evolve runs the genetic algorithm
-{-evolve :: (Fractional a, Integral b, Ord a, Random a) => Int                     -- seed
-                                                        -> [([Char], b)]         -- population
-                                                        -> Int                   -- generation size
-                                                        -> Int                   -- maximum number of generations
-                                                        -> Float                 -- crossover parameter
-                                                        -> Float                 -- mutation parameter
-                                                        -> ([Char] -> a)         -- fitness function
-                                                        -> (Int -> Int -> Bool)  -- fitness order: > if further from 0 is fitter; < if closer to 0 is fitter
-                                                        -> [([Char], b)] -}   -- population after certain number of generations
+evolve :: (Fractional a, Ord a, Random a) => Int                   -- seed
+                                          -> [([Char], Int)]       -- population
+                                          -> Int                   -- generation size
+                                          -> Int                   -- maximum number of generations
+                                          -> Float                 -- crossover parameter
+                                          -> Float                 -- mutation parameter
+                                          -> ([Char] -> a)         -- fitness function
+                                          -> (Int -> Int -> Bool)  -- fitness order: > if further from 0 is fitter; < if closer to 0 is fitter
+                                          -> [([Char], Int)]       -- population after certain number of generations
 evolve seed pop gensize nrgen cpar mpar fitnessfunction order = let
         seedsgen = map (`mod` 10000) (take nrgen (randoms $ mkStdGen seed :: [Int]))
     in evolve' seedsgen pop nrgen where
