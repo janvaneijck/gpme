@@ -144,7 +144,7 @@ freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= o
 
         
 -- examples to use:
--- Run: evolveVerbose 0 mediumpopulation' 40 100 0.001 fitnessbinaryscaled
+-- Run: evolveVerbose 0 mediumpopulation' 40 100 0.5 0.001 fitnessbinaryscaled
 
 population, smallpopulation, mediumpopulation :: [(String, Int)]
 population = [("11100",100), ("00011",100)]
