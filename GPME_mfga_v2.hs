@@ -95,8 +95,8 @@ evolveVerbose seed pop gensize nrgen mpar fitnessfunction = let
     in evolve' seedsgen pop nrgen where
         evolve' _ pop 0 = do putStrLn $ "Generation " ++ (show (nrgen)) ++ ": " ++ (show pop)
         evolve' (s:seeds) pop k = do
-            let newGen = createGen s pop gensize mpar fitnessfunction
-            putStrLn $ "Generation " ++ (show (nrgen - k)) ++ ": " ++ (show newGen)
+            putStrLn $ "Generation " ++ (show (nrgen - k)) ++ ": " ++ (show pop)
+            let newGen = createGen s pop gensize mpar fitnessfunction            
             evolve' seeds newGen (k-1)
 
 
@@ -150,5 +150,3 @@ bitstringtofloat xs = bitstringtofloat' xs (length xs) where
    bitstringtofloat' [] _ = 0
    bitstringtofloat' (x:xs) count = (bittofloat x)*2^(count-1) + (bitstringtofloat' xs (count-1))
    bittofloat x = if x == '1' then 1.0 else 0.0
-
-
