@@ -129,6 +129,8 @@ freqRep (org:rest) = (org, (count org rest) + 1) : freqRep (filter (\x -> x /= o
 
         
 -- examples to use:
+-- Run: evolveVerbose 0 mediumpopulation' 40 100 0.001 fitnessbinaryscaled
+
 population, smallpopulation, mediumpopulation :: [(String, Int)]
 population = [("11100",100), ("00011",100)]
 smallpopulation = [("11111", 1),("00000",1)]
@@ -145,8 +147,12 @@ fitnessratio ('1':_) = 10
 fitnessbinary :: String -> Float
 fitnessbinary organism = bitstringtofloat organism
 
+fitnessbinaryscaled :: String -> Float
+fitnessbinaryscaled organism = (bitstringtofloat organism)**2
+
 bitstringtofloat :: [Char] -> Float
 bitstringtofloat xs = bitstringtofloat' xs (length xs) where
    bitstringtofloat' [] _ = 0
    bitstringtofloat' (x:xs) count = (bittofloat x)*2^(count-1) + (bitstringtofloat' xs (count-1))
    bittofloat x = if x == '1' then 1.0 else 0.0
+   
