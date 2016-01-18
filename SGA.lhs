@@ -175,7 +175,7 @@ numbers of copies of the same bitlist. Type of a population:
 Example population from the Goldberg assignment:
         
 > population :: Population
-> population = [([1,1,1,0,0,0,0,0,0],100),([0,0,0,1,1,0,0,0,0],100)]
+> population = [([1,1,1,0,0,0 ,0,0,0,0,0,0],100),([0,0,0,0,0,0,1,1,0,0,0,0],100)]
  
 From a population to a probability distribution:
 
