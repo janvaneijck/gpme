@@ -1,0 +1,252 @@
+\documentclass[a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{amstext}
+\usepackage{paralist}
+\usepackage{setspace}
+\usepackage{MnSymbol}
+\usepackage{graphicx}
+\usepackage{stmaryrd}
+\usepackage{algorithm}
+\usepackage{changepage}
+\usepackage{cancel}
+\usepackage{algpseudocode}
+\usepackage{lastpage}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+\usetikzlibrary{arrows}
+
+\setlength{\parindent}{0pt}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{}
+\chead{}
+\rhead{}
+\lfoot{\textcolor{Gray}{O.F. Tuyt \& P.W.B. Michgelsen}}
+\cfoot{}
+\rfoot{\textcolor{Gray}{\thepage \; / \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.0pt}
+\renewcommand{\footrulewidth}{0.0pt}
+
+\newcommand{\lp}{\langle}
+\newcommand{\rp}{\rangle}
+\newcommand{\fl}{\llcorner}
+\newcommand{\fr}{\lrcorner}
+\newcommand{\power}{\mathcal{P}}
+\newcommand{\vect}[1]{\overrightarrow{#1}}
+\newcommand{\limit}{\underset{n \rightarrow \infty}{\lim}}
+\newcommand{\limitxto}[1]{\underset{x \rightarrow #1}{\lim}}
+\newcommand{\Deriv}{\frac{d}{dx}}
+\newcommand{\Strings}{\{ 0,1 \}^*}
+\newcommand{\Polystrings}{\{0,1 \}^{p( \vert x \vert )}}
+\newcommand{\Prob}[1]{\mathbb{P}[#1]}
+\newcommand{\Expec}[1]{\mathbb{E}[#1]}
+\newcommand{\prob}{\mathbb{P}}
+
+
+
+\title{\normalsize{Genetic Programming Made Easy}\\ \huge{Reproduction Techniques}}
+
+\author{Olim F. Tuyt \& Philip W.B. Michgelsen}
+
+\date{\today}
+
+
+\newtheoremstyle{dotless}{}{}{\itshape}{}{\bfseries}{}{ }{}
+\theoremstyle{dotless}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy} 
+%\thispagestyle{plain}
+%\thispagestyle{empty}
+
+\begin{abstract}
+\noindent A genetic algorithm consists of three operations: reproduction, crossover and mutation. All three operations can be carried out in different ways, resulting in different genetic algorithm styles. This short treatise will focus on the operation of reproduction and will illustrate three different techniques to perform this operation. The different techniques require different algorithms and generate mathematical differences to the genetic algorithms incorporating them. To better understand what the consequences are of each of the different reproduction techniques, the mathematical differences will be carefully explained.
+\end{abstract}
+
+\section{Introduction}
+
+In the words of Goldberg, ``Genetic algorithms are search algorithms based on the mechanics of natural selection and natural genetics." Genetic algorithms are search methods that use ideas from genetics to perform a directed randomized efficient search to an optimum set of data points, in a given set of points, determined by some given \emph{fitness function}. They use the idea of survival of the fittest, among data, combined  with a structured yet randomized information exchange, given by the ideas of mutation and crossover, to provide a robust and very efficient optimum search algorithm. A genetic algorithm reproduces a sample of organisms, from a population, in such a way that, without heaving to go through the entire population, the fittest data points can be found.\footnote{Goldberg 1989: p. 1.} \\
+
+Genetic algorithms are functions that take as input a (i) sample of a particular population, (ii) a fitness function, (iii) a crossover parameter, (iv) a mutation parameter, and an optional bound on the sizes of each generation; genetic algorithms, then return data points, or organisms, in the population, that are the optimum of the population, according to the given fitness function. Genetic algorithms essentially make use of three operations, reproduction, mutation and crossover, to create new generations from the sample of the population, to create a fittest set of organisms. The operation of reproduction is usually carried out first, creating new organisms from old, by incorporating the idea of survival of the fittest; then the operation of crossover is carried out on some percentage of the population, given by the crossover parameter, usually by swapping the head and tail of two bit strings; finally, the operation of mutation is carried out by flipping a single bit in a string (some organism), according to a (biased) coin flip, based on the mutation parameter. In short, ``genetic algorithms start with a random population of $n$ strings, copy strings with some bias toward the best, mate and partially swap substrings, and mutate an occasional bit value for good measure."\footnote{Goldberg 1989: p. 28.} In the following we will call our sample of the population just our population and also see each generation as a population, such that a genetic algorithm becomes a recursive algorithm defined over a population.\\
+
+To determine what are the fittest organisms in the process of reproduction, a fitness function is used. This is function from the population to the real numbers. This function can be either a \emph{fittest-low fitness function}, a \emph{fittest-high fitness function} or a \emph{fittest-0 function}. A \emph{fittest-low fitness function} is defined s.t the lower the fitness value (possibly negative) an organism is assigned, the fitter the organism; a \emph{fittest-high fitness function} is defined s.t. the higher, the fitter; a \emph{fittest-zero fitness function} is defined s.t. the closer to zero the fittest and 0 is the highest possible fitness value (no negative values are allowed in this case).\\
+
+In this short treatise on genetic algorithms, three different techniques to carry out the operation of reproduction will be illustrated: both the method of performing the reproduction technique and the mathematical consequences of each reproduction technique will be explained. This gives insight into what reproduction technique to use in what setting. Sometimes, depending on the population and the fitness functions given, different reproduction techniques can be desirable. 
+
+\section{Reproduction Techniques}
+
+\subsection{Roulette Wheel Reproduction}
+
+In the \textit{Roulette Wheel Reproduction} technique we reproduce each organism $x_i$ with a probability corresponding to their share of the total fitness.\footnote{cf. Goldberg 1989: p. 30.} To carry out this reproduction technique a specific bound on the generation size must be given in advance. How \emph{Roulette Wheel Reproduction} procedure is carried out, depends on the fitness function chosen. That is, the procedure is slightly more cumbersome if the fitness function associates lower fitness values to fitter organisms. Therefore we will first introduce the technique with a \emph{fittest-high fitness function}.\\
+
+Let $X=\{x_1,..,x_n \}$ be a finite population and let $f: X \rightarrow \mathbb{R}$ be some fitness function, s.t. the further $f^>(x)$ is away from zero the fitter. Let $c \in \mathbb{N}$ be some given bound of the generation size. Consider the following reproduction process:
+
+	\begin{enumerate}
+	\item Calculate $f(x_i)$ for all $x_i \in X$;
+	\item Associated $p_i = \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}$ with $x_i$;
+	\item  Create intervals $[0,p_1),...,[ \sum^n_{j<i} p_j, \sum^n_{j \leq i} p_j ),..., [\sum^n_{j<n} p_j, \sum^n_{j \leq n} p_j ]$, s.t. to each $\lp x_i,p_i \rp$ there is one interval associated;
+	\item Uniformly pick $c$ random real numbers $r_1,...,r_c$ from $[0,1]$;
+	\item For each $r_j$, if $r_j$ falls in interval $\lp x_i,p_i \rp$, then reproduce $x_i$.
+	\end{enumerate}
+	
+Note that in the above procedure we have, that the probability that $x_i$ is reproduced, $\Prob{x_i}$, is exactly its share in the total fitness of the population, that is:
+
+\begin{equation}
+\Prob{x_i} = \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}
+\end{equation}
+
+Furthermore, the expected number of $x_i$ in the next generation is then just its share in the total fitness times the given bound $c$ on the generation size, that is:
+
+\begin{equation}
+\Expec{\# \text{ of organisms $x_i$ found}} = c \cdot \Prob{_i \text{ will be reproduced}}
+\end{equation}
+
+Let $X_i = \{ x \mid x \in X, f(x)=f(x_i) \}$, that is the set of organisms equally fit as organism $x_i$. Assume $X_i$ consists of $l_i$ organisms, then the expected number of elements of $X_i$ in the next generation is:
+
+\begin{equation}\label{expected number rwr}
+\Expec{ \# \text{ elements of } X_i \text{ found in next generation}} = l_i \cdot c \cdot \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}
+\end{equation}
+
+The above described process to carry out the \emph{Roulette Wheel Reproduction} will not work for a \emph{fittest-low} nor for a \emph{fittest-0 fitness function}, because, then the fittest organisms will receive the lowest, or even negative, probability for survival, opposite to what we desire. The procedure can be altered, such that, it can be carried out with a \emph{fittest-0 fitness function}, however, it cannot be tweaked to cope with a \emph{fittest-low fitness function}.\footnote{If one has a \emph{fittest-low fitness function} and wants to use the \emph{Roulette Wheel Reproduction} reproduction technique nevertheless, then it is often possible to alter the fitness function to either  a \emph{fittest-0} or \emph{fittest-high fitness function}. If this is impossible, then the \textit{Total Order Reproduction} is a good alternative.}\\
+
+Again assume we have some finite population $X=\{x_1,..,x_n \}$ and let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-0 fitness function}, s.t. the closer $f(x)$ is to zero, the fitter the organism $x$. If we want to be able to carry out reproduction using the the \emph{Roulette Wheel Reproduction} technique, then we need to alter the probability $p_i$ we assign to organism in step 2. We need to do this in such a way, that we satisfy the specific properties of \emph{Roulette Wheel Reproduction} technique, which are:
+
+	\begin{enumerate}[(i)]
+	\item reproduction probabilities respect the order of fitnesses:
+	\begin{center}
+	$f(x_i) < f(x_j) \Rightarrow \Prob{x_i} > \Prob{x_j}$ (N.B. we have a \emph{fittest-low fitness function} now)
+	\end{center}
+	\item reproduction probabilities respect the weight of the fitness:
+	\begin{center}
+	$\dfrac{f(x_i)}{f(x_j)} = r \Rightarrow \dfrac{\Prob{x_i}}{\Prob{x_j}} = r$,
+	\end{center}
+	\end{enumerate}
+
+To achieve this, we need to ascribe the following probability to $x_i$, which will be again $x_i$'s probability of survival to $x_i$:
+
+\begin{equation}\label{probability roulette fittest-low}
+p_i = \dfrac{\frac{1}{f(x_i)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = \Prob{x_i}
+\end{equation}
+
+\begin{proof} Clearly all the $p_i$ add up to one, since $\sum^n_{j=1} \dfrac{\frac{1}{f(x_j)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = 1$. Furthermore, the probability assigned to each $x_i$ satisfies the specific properties (i) and (ii) by respectively (i) and (ii) below:
+\begin{enumerate}[(i)]
+\item Assume $f(x_i) < f(x_j)$. Then $\frac{1}{f(x_i)} > \frac{1}{f(x_j)}$, thus we have, 
+$\dfrac{\frac{1}{f(x_i)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} > \dfrac{\frac{1}{f(x_j)}}{\sum^n_{k=1} \frac{1}{f(x_k)}}$, as required.
+\item Assume $\dfrac{f(x_i)}{f(x_j)} = r$. This is equivalent to $\dfrac{1}{f(x_i)} = r \cdot \dfrac{1}{f(x_j)}$. The latter can be expanded to $
+\dfrac{\dfrac{1}{f(x_i}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = \dfrac{r \cdot \dfrac{1}{f(x_j}}{\sum^n_{k=1} \frac{1}{f(x_k)}}$, which is by definition $\Prob{x_i} = r \cdot \Prob{x_j}$, or equivalently, $\dfrac{\Prob{x_i}}{\Prob{x_j}} = r$.
+\end{enumerate}
+\end{proof}
+
+The foregoing implies that to adjust the \emph{Roulette Wheel  Reproduction} technique to cope with \emph{fittest-low fitness functions} we just need to make \textit{two} alterations in the process described above. First we need to check in the first step, after the calculations of all the fitnesses, if the sum of all the fitness values is greater than 0. If so, then we can continue to step 2. Second, we need to alter the $p_i$ associated to each $x_i$ according to the probability in (\ref{probability roulette fittest-low}).\\
+
+The \emph{Roulette Wheel Reproduction} technique stays true to the concept of \emph{survival of the fittest}, but can result in a problem called \emph{premature convergence}.  If in the fitness variance in the population is high, early in search, and a small number of organisms are much fitter than the others, then these fittest organisms and their crossover products will dominate the next generations very quickly in the population. This can prevent the genetic algorithm from exploring a larger range of the population, leading it to miss the real optima. The dominating organisms will all have very similar fitness scores, that is, they have very low fitness variance, which prevents the roulette wheel from exploiting the fitness differences, resulting in a very early stabilization of the population, on a local optimum. The \emph{Roulette Wheel Reproduction} technique can thus put ``too much emphasis on `exploitation' of highly fit strings at the expense of exploration of other regions of the search space." In \emph{Roulette Wheel Reproduction} the difference among generations depends on the variance of fitness in the parent generation. This problem can be met by choosing a high mutation parameter, that is, to force many organisms to be mutated.\footnote{Mitchell 1999: p. 123.}
+
+\subsection{Total-Order Reproduction}
+
+In the \textit{Total-Order Reproduction} technique we reproduce each organism with a probability weighted $x_i$ according to its position in an order on fitness classes. How this procedure is carried out does again depend on the fitness function chosen, but the required change to the procedure is very simple. Furthermore, just as in \emph{Roulette Wheel Reproduction}, this reproduction technique requires a specific bound on the generation, given in advance, to be able to function. 
+\\
+
+Let $X = \{x_1,...,x_n \}$ be a finite population. Let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-low fitness function} for our population $X$. Let $c \in \mathbb{N}$ be some given bound of the generation size. Consider the following reproduction process:
+
+	\begin{enumerate}
+	\item Uniformly pick two organisms $x_i,x_j \in X$ (not necessarily distinct);
+	\item Calculate $f(x_i)$ and $f(x_j)$;
+	\item If $f(x_i) < f(x_j)$ then reproduce $x_i$, else reproduce $x_j$ (for \emph{fittest-high functions} choose $>$)
+	\item Repeat this procedure $c$ times.
+	\end{enumerate}
+	
+This reproduction process is called the \textit{Total-Order Reproduction Process}, because it neglects the particular fitness values of the organisms, and only focusses on an order among the fitness values. To see this, partition $X$ into subsets $X_i$ s.t. each subset represents a fitness class, that is, all elements in $X_i$ have the same fitness value $f_i$ under $f$ and for every distinct fitness value $f_i$, there is a distinct subset $X_i$ representing it. We can order the subsets $X_i$ according to their corresponding fitness value (higher to lower) s.t $X_1 > .. > X_k > ... > X_n$. Furthermore we let $X_i = \{ x_{i,1},...,x_{i,l_i} \}$. This gives us the following survival probability for an organism of $f_i$:
+
+\begin{equation}
+\Prob{\exists k \text{ s.t. } x_{i,k} \text{ survives}} = \frac{l_i}{c} \cdot \dfrac{\sum^i_{j=1} l_j}{c} = \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} \text{, where $j<i$.}
+\end{equation}
+
+With this probability, we can calculate the expected number of elements of some particular subset $X_i$, found after reproduction, with a bound $c$ on the generation size:
+
+\begin{equation}\label{expected number tor}
+\Expec{ \# \text{ elements of } X_i \text{ found in next generation}} = c \cdot \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} = l_i \cdot \frac{\sum^i_{j=1} l_j}{c}
+\end{equation}
+
+In the above equation (\ref{expected number tor}) we see that the expected number of instances of some particular subset $X_i$ found, only depends on (i) the number of organisms with fitness $f_i$ and (ii) the ratio of organism with fitness lower than $f_i$ and the bound on the generation. Furthermore, we see that the function $f$ is absent in equation (\ref{expected number tor}) (cf. equation (\ref{expected number rwr})), hence, only the order between the particular fitness values matters, not the size of their particular values. In \emph{Total Order Reproduction} only the \textit{number} of organisms with higher and lower-or-equal fitness determine which organisms are most likely to be reproduced. This is very different for Roulette Wheel Reproduction, where not only the \textit{number}, but also the share of the particular fitness value of the organism in the total fitness of the population is taken into account.\\ 
+
+A consequence of carrying out a \emph{Total-Order Reproduction} is that the number of fittest organisms in a generation is expected never to increase. That is, the cardinality $l_n$ of $X_n$ is expected to remain the same in all generations, assuming a crossover and mutation parameter of 0; in \emph{Roulette Wheel Reproduction} this cardinality is expected to keep increasing until the whole generation consists of fittest organisms.
+
+\subsection{Expected Number Control Reproduction}
+
+In the \emph{Expected Number Control Reproduction} technique we reproduce ...
+
+it can be seen as a waekened form of \emph{ellitism} (in `ellitism' the $k$ best organisms to be retained in the next \emph{generation})\footnote{Mitchell 1999: p. 126}
+
+
+Let $X = \{x_1,...,x_n \}$ be a finite population. Let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-high fitness function} for our population $X$. Define $\mu = \dfrac{\sum^n_{k=1} f(x_k)}{n}$, i.e. average fitness of population. Furthermore, define a floor function $\llcorner . \lrcorner: \mathbb{R} -> \mathbb{Z}$, which returns the integral part of a real number, e.g. $\fl 1.3 \fr = 3$ and $\fl 0.9 \fr = 0$. Do the following procedure for all $x_i \in X$:
+
+	\begin{enumerate}
+	\item Calculate $m_i = \dfrac{f(x_i)}{\mu}$;
+	\item Set $p_i = m_i - \fl m_i \fr$;
+	\item Reproduce $x_i$, $\fl m_i \fr$ times;
+	\item Pick uniformly some random real number $r \in [0,1]$: if $1 - r \leq p_i$ then reproduce $x_i$.
+	\end{enumerate}
+	
+Note that in the above procedure we have, that the probability that $x_i$ is reproduced, $\Prob{x_i}$, is:
+
+\begin{equation}\label{probability ENC}
+\Prob{x_i} = \min \{ \dfrac{f(x_i)}{\mu}, 1 \}
+\end{equation}
+
+It is clear from the above equation (\ref{probability ENC}) that if some organism has a fitness above average, then it reproduce with probability 1, otherwise, it reproduces with a probability smaller than 1. The expected number copies of a single organism $x_i$ is:
+
+\begin{equation}\label{expectation ENC}
+\Expec{\# x_i} = \fl m_i \fr + m_i - \fl m_i \fr = m_i = \dfrac{f(x_i)}{\mu}
+\end{equation}
+
+The foregoing equations, (\ref{expectation ENC}) and (\ref{probability ENC}), make it clear why this reproduction technique is called \emph{Expected Number Control}, since this reproduction procedure guarantees that the fittest organisms are \emph{reproduced}. This is however still no \emph{elitisms}, because these fittest organisms can still disappear in the population after 1 round of the recursive genetic algorithm, due to crossover and mutation. Furthermore, from the foregoing, we see that \emph{Expected Number Control} has the nice property that the ratio of the expected number of $x_i$ and of $x_j$, in the next generation, is proportionate to the ratio of their fitnesses, that is:
+
+\begin{equation}\label{Property ENC}
+f(x_i) = r f(x_j) \Rightarrow \Expec{ \# x_i } = r \Expec{ \# x_j },
+\end{equation}
+
+in the case of a \emph{fittest-high fitness function}, where $x_i$ is $r$ times fitter than $x_j$. As in the case of \emph{Roulette Wheel Reproduction} technique the above described procedure will, however, not work with a \emph{fittest-0} and \emph{fittest-low fitness function}. The procedure can be adjusted such that it works for the first, but it cannot work in general for the latter. To adjust \emph{Expected Number Control} to work for \emph{fittest-0 fitness function}, the following needs to be done:
+
+	\begin{center}
+	set $m_i = \dfrac{\frac{1}{f(x_i)}}{\mu}$.
+	\end{center}
+
+To keep the nice property in (\ref{Property ENC}), now in the case of \emph{fittest-0 fitness function}, that is:
+
+\begin{equation}
+f(x_i) = \frac{1}{r} f(x_j) \Rightarrow \Expec{ \# x_i } = r \Expec{ \# x_j }
+\end{equation}
+
+where we have $\frac{1}{r}$ to capture that $x_i$ is $r$ times fitter than $x_j$. It suffices to set $m_i$ as above, since:
+
+\begin{equation}
+\Expec{\# x_i} =  \dfrac{\frac{1}{f(x_i)}}{\mu} = \dfrac{1}{f(x_i) \cdot \mu} = \dfrac{1}{\frac{1}{r} f(x_j) \cdot \mu} = \dfrac{1}{r} \Expec{\# x_j}.
+\end{equation}
+
+A major difference between \emph{Expected Number Control Reproduction} and the other reproduction techniques described in this essay, is that \emph{Expected Number Control} does not demand a bound on the size of the generation, specified before reproduction can be carried out. Moreover, the size of the new generation obtained by \emph{Expected Number Control} can not even be known in advance, because it depends on the (biased) coin flips (i.e. the uniform pick of $r \in [0,1]$) for the left-over non-integer parts of the $m_i$. Furthermore, just as \emph{Roulette Wheel Reproduction}, reproduction by \emph{Expected Number Control} suffers from \emph{premature convergence} and even more severely. If the population that will be reproduced by \emph{Expected Number Control}, has a high fitness variance, then the far outlying fittest organisms, will be reproduced in very large numbers, because their expectation depends (partly) on the mean fitness, meaning the genetic algorithm will, depending on the crossover and mutation parameters, stabilize very early on the optima found in the original random sample population.
+
+\section{Bibliography}
+
+\begin{enumerate}
+\item Goldberg, D.E., (1989), \textit{``Genetic Algorithms in
+Search, Optimization, and Machine Learning"}, Addison-Wesley Publishing Company.
+\item Mitchell, M. (1999), \textit{``An Introduction to Genetic Algorithms"}, MIT press.
+\end{enumerate}
+
+\end{document}
