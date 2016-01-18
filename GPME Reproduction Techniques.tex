@@ -95,7 +95,7 @@ In this short treatise on genetic algorithms, three different techniques to carr
 
 In the \textit{Roulette Wheel Reproduction} technique we reproduce each organism $x_i$ with a probability corresponding to their share of the total fitness.\footnote{cf. Goldberg 1989: p. 30.} To carry out this reproduction technique a specific bound on the generation size must be given in advance. How \emph{Roulette Wheel Reproduction} procedure is carried out, depends on the fitness function chosen. That is, the procedure is slightly more cumbersome if the fitness function associates lower fitness values to fitter organisms. Therefore we will first introduce the technique with a \emph{fittest-high fitness function}.\\
 
-Let $X=\{x_1,..,x_n \}$ be a finite population and let $f: X \rightarrow \mathbb{R}$ be some fitness function, s.t. the further $f^>(x)$ is away from zero the fitter. Let $c \in \mathbb{N}$ be some given bound of the generation size. Consider the following reproduction process:
+Let $X=\{x_1,..,x_n \}$ be a finite population and let $f: X \rightarrow \mathbb{R}$ be some fitness function, s.t. the further $f(x)$ is away from zero the fitter. Let $c \in \mathbb{N}$ be some given bound of the generation size. Consider the following reproduction process:
 
 	\begin{enumerate}
 	\item Calculate $f(x_i)$ for all $x_i \in X$;
@@ -111,34 +111,34 @@ Note that in the above procedure we have, that the probability that $x_i$ is rep
 \Prob{x_i} = \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}
 \end{equation}
 
-Furthermore, the expected number of $x_i$ in the next generation is then just its share in the total fitness times the given bound $c$ on the generation size, that is:
+Furthermore, the expected number of $x_i$, found after reproduction, is then just its share in the total fitness times the given bound $c$ on the generation size, that is:
 
 \begin{equation}
-\Expec{\# \text{ of organisms $x_i$ found}} = c \cdot \Prob{_i \text{ will be reproduced}}
+\Expec{\# \text{ of organisms $x_i$ found after reproduction}} = c \cdot \Prob{_i \text{ will be reproduced}}
 \end{equation}
 
-Let $X_i = \{ x \mid x \in X, f(x)=f(x_i) \}$, that is the set of organisms equally fit as organism $x_i$. Assume $X_i$ consists of $l_i$ organisms, then the expected number of elements of $X_i$ in the next generation is:
+Let $X_i = \{ x \mid x \in X, f(x)=f(x_i) \}$, that is the set of organisms equally fit as organism $x_i$. Assume $X_i$ consists of $l_i$ organisms, then the expected number of elements of $X_i$, found after reproduction, is:
 
 \begin{equation}\label{expected number rwr}
-\Expec{ \# \text{ elements of } X_i \text{ found in next generation}} = l_i \cdot c \cdot \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}
+\Expec{ \# \text{ elements of } X_i \text{ found after reproduction}} = l_i \cdot c \cdot \dfrac{f(x_i)}{\sum^n_{j=1} f(x_j)}
 \end{equation}
 
 The above described process to carry out the \emph{Roulette Wheel Reproduction} will not work for a \emph{fittest-low} nor for a \emph{fittest-0 fitness function}, because, then the fittest organisms will receive the lowest, or even negative, probability for survival, opposite to what we desire. The procedure can be altered, such that, it can be carried out with a \emph{fittest-0 fitness function}, however, it cannot be tweaked to cope with a \emph{fittest-low fitness function}.\footnote{If one has a \emph{fittest-low fitness function} and wants to use the \emph{Roulette Wheel Reproduction} reproduction technique nevertheless, then it is often possible to alter the fitness function to either  a \emph{fittest-0} or \emph{fittest-high fitness function}. If this is impossible, then the \textit{Total Order Reproduction} is a good alternative.}\\
 
-Again assume we have some finite population $X=\{x_1,..,x_n \}$ and let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-0 fitness function}, s.t. the closer $f(x)$ is to zero, the fitter the organism $x$. If we want to be able to carry out reproduction using the the \emph{Roulette Wheel Reproduction} technique, then we need to alter the probability $p_i$ we assign to organism in step 2. We need to do this in such a way, that we satisfy the specific properties of \emph{Roulette Wheel Reproduction} technique, which are:
+Again assume we have some finite population $X=\{x_1,..,x_n \}$ and let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-0 fitness function}, s.t. the closer $f(x)$ is to zero, the fitter the organism $x$. If we want to be able to carry out reproduction, using the the \emph{Roulette Wheel Reproduction} technique, then we need to alter the probability $p_i$, that we assign to an organism in step 2. We need to do this in such a way, that we satisfy the specific properties of the \emph{Roulette Wheel Reproduction} technique, which are:
 
 	\begin{enumerate}[(i)]
 	\item reproduction probabilities respect the order of fitnesses:
 	\begin{center}
-	$f(x_i) < f(x_j) \Rightarrow \Prob{x_i} > \Prob{x_j}$ (N.B. we have a \emph{fittest-low fitness function} now)
+	$f(x_i) < f(x_j) \Rightarrow \Prob{x_i} > \Prob{x_j}$ (N.B. we have a \emph{fittest-low fitness function} now.);
 	\end{center}
 	\item reproduction probabilities respect the weight of the fitness:
 	\begin{center}
-	$\dfrac{f(x_i)}{f(x_j)} = r \Rightarrow \dfrac{\Prob{x_i}}{\Prob{x_j}} = r$,
+	$\dfrac{f(x_i)}{f(x_j)} = r \Rightarrow \dfrac{\Prob{x_i}}{\Prob{x_j}} = r$.
 	\end{center}
 	\end{enumerate}
 
-To achieve this, we need to ascribe the following probability to $x_i$, which will be again $x_i$'s probability of survival to $x_i$:
+To achieve this, we need to ascribe the following probability $p_i$ to $x_i$, which is also the probability that $x_i$ is found after reproduction:
 
 \begin{equation}\label{probability roulette fittest-low}
 p_i = \dfrac{\frac{1}{f(x_i)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = \Prob{x_i}
@@ -148,53 +148,57 @@ p_i = \dfrac{\frac{1}{f(x_i)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = \Prob{x_i}
 \begin{enumerate}[(i)]
 \item Assume $f(x_i) < f(x_j)$. Then $\frac{1}{f(x_i)} > \frac{1}{f(x_j)}$, thus we have, 
 $\dfrac{\frac{1}{f(x_i)}}{\sum^n_{k=1} \frac{1}{f(x_k)}} > \dfrac{\frac{1}{f(x_j)}}{\sum^n_{k=1} \frac{1}{f(x_k)}}$, as required.
-\item Assume $\dfrac{f(x_i)}{f(x_j)} = r$. This is equivalent to $\dfrac{1}{f(x_i)} = r \cdot \dfrac{1}{f(x_j)}$. The latter can be expanded to $
+\item Assume $\dfrac{f(x_i)}{f(x_j)} = r$. This is equivalent to $\dfrac{1}{f(x_i)} = r \cdot \dfrac{1}{f(x_j)}$. The latter can be expanded to \linebreak $
 \dfrac{\dfrac{1}{f(x_i}}{\sum^n_{k=1} \frac{1}{f(x_k)}} = \dfrac{r \cdot \dfrac{1}{f(x_j}}{\sum^n_{k=1} \frac{1}{f(x_k)}}$, which is by definition $\Prob{x_i} = r \cdot \Prob{x_j}$, or equivalently, $\dfrac{\Prob{x_i}}{\Prob{x_j}} = r$.
 \end{enumerate}
 \end{proof}
 
 The foregoing implies that to adjust the \emph{Roulette Wheel  Reproduction} technique to cope with \emph{fittest-low fitness functions} we just need to make \textit{two} alterations in the process described above. First we need to check in the first step, after the calculations of all the fitnesses, if the sum of all the fitness values is greater than 0. If so, then we can continue to step 2. Second, we need to alter the $p_i$ associated to each $x_i$ according to the probability in (\ref{probability roulette fittest-low}).\\
 
-The \emph{Roulette Wheel Reproduction} technique stays true to the concept of \emph{survival of the fittest}, but can result in a problem called \emph{premature convergence}.  If in the fitness variance in the population is high, early in search, and a small number of organisms are much fitter than the others, then these fittest organisms and their crossover products will dominate the next generations very quickly in the population. This can prevent the genetic algorithm from exploring a larger range of the population, leading it to miss the real optima. The dominating organisms will all have very similar fitness scores, that is, they have very low fitness variance, which prevents the roulette wheel from exploiting the fitness differences, resulting in a very early stabilization of the population, on a local optimum. The \emph{Roulette Wheel Reproduction} technique can thus put ``too much emphasis on `exploitation' of highly fit strings at the expense of exploration of other regions of the search space." In \emph{Roulette Wheel Reproduction} the difference among generations depends on the variance of fitness in the parent generation. This problem can be met by choosing a high mutation parameter, that is, to force many organisms to be mutated.\footnote{Mitchell 1999: p. 123.}
+The \emph{Roulette Wheel Reproduction} technique stays true to the concept of \emph{survival of the fittest}, but can result in a problem called \emph{premature convergence}.  If the fitness variance in the population is high and a small number of organisms are much fitter than the others, then these fittest organisms, and their crossover products, will dominate the next generations very quickly in the population. This can prevent the genetic algorithm from exploring a larger range of the search space, leading it to miss the real optima. The dominating organisms will all have very similar fitness scores, that is, they have very low fitness variance, which prevents the roulette wheel from exploiting the fitness differences, resulting in a very early stabilization of the population, on a, perhaps, local optimum. The \emph{Roulette Wheel Reproduction} technique can thus put ``too much emphasis on `exploitation' of highly fit strings at the expense of exploration of other regions of the search space." In \emph{Roulette Wheel Reproduction} the difference among generations depends on the variance of fitness in the parent generation. This problem can be met by choosing a high mutation parameter, which forces many organisms to be mutated.\footnote{Mitchell 1999: p. 123.}
 
 \subsection{Total-Order Reproduction}
 
-In the \textit{Total-Order Reproduction} technique we reproduce each organism with a probability weighted $x_i$ according to its position in an order on fitness classes. How this procedure is carried out does again depend on the fitness function chosen, but the required change to the procedure is very simple. Furthermore, just as in \emph{Roulette Wheel Reproduction}, this reproduction technique requires a specific bound on the generation, given in advance, to be able to function. 
-\\
+In the \textit{Total-Order Reproduction} technique we reproduce each organism with a probability weighted according to its position in an order on fitness classes. How this procedure is carried out, again depends on the fitness function chosen, but the required change to the procedure is very simple. Furthermore, just as in \emph{Roulette Wheel Reproduction}, this reproduction technique requires a specific bound on the size of the new generation, given in advance, to be carried out.\\
 
 Let $X = \{x_1,...,x_n \}$ be a finite population. Let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-low fitness function} for our population $X$. Let $c \in \mathbb{N}$ be some given bound of the generation size. Consider the following reproduction process:
 
 	\begin{enumerate}
 	\item Uniformly pick two organisms $x_i,x_j \in X$ (not necessarily distinct);
 	\item Calculate $f(x_i)$ and $f(x_j)$;
-	\item If $f(x_i) < f(x_j)$ then reproduce $x_i$, else reproduce $x_j$ (for \emph{fittest-high functions} choose $>$)
+	\item If $f(x_i) < f(x_j)$ then reproduce $x_i$, else reproduce $x_j$ (for \emph{fittest-high functions} choose $>$);
 	\item Repeat this procedure $c$ times.
 	\end{enumerate}
 	
 This reproduction process is called the \textit{Total-Order Reproduction Process}, because it neglects the particular fitness values of the organisms, and only focusses on an order among the fitness values. To see this, partition $X$ into subsets $X_i$ s.t. each subset represents a fitness class, that is, all elements in $X_i$ have the same fitness value $f_i$ under $f$ and for every distinct fitness value $f_i$, there is a distinct subset $X_i$ representing it. We can order the subsets $X_i$ according to their corresponding fitness value (higher to lower) s.t $X_1 > .. > X_k > ... > X_n$. Furthermore we let $X_i = \{ x_{i,1},...,x_{i,l_i} \}$. This gives us the following survival probability for an organism of $f_i$:
 
 \begin{equation}
-\Prob{\exists k \text{ s.t. } x_{i,k} \text{ survives}} = \frac{l_i}{c} \cdot \dfrac{\sum^i_{j=1} l_j}{c} = \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} \text{, where $j<i$.}
+\Prob{\exists k \text{ s.t. } x_{i,k} \text{ is found after reproduction}} = \frac{l_i}{c} \cdot \dfrac{\sum^i_{j=1} l_j}{c} = \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} \text{, where $j<i$.}
 \end{equation}
 
 With this probability, we can calculate the expected number of elements of some particular subset $X_i$, found after reproduction, with a bound $c$ on the generation size:
 
 \begin{equation}\label{expected number tor}
-\Expec{ \# \text{ elements of } X_i \text{ found in next generation}} = c \cdot \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} = l_i \cdot \frac{\sum^i_{j=1} l_j}{c}
+\Expec{ \# \text{ elements of } X_i \text{ found after reproduction}} = c \cdot \frac{l_i \cdot \sum^i_{j=1} l_j}{c^2} = l_i \cdot \frac{\sum^i_{j=1} l_j}{c} \text{, where $j<i$.}
 \end{equation}
 
-In the above equation (\ref{expected number tor}) we see that the expected number of instances of some particular subset $X_i$ found, only depends on (i) the number of organisms with fitness $f_i$ and (ii) the ratio of organism with fitness lower than $f_i$ and the bound on the generation. Furthermore, we see that the function $f$ is absent in equation (\ref{expected number tor}) (cf. equation (\ref{expected number rwr})), hence, only the order between the particular fitness values matters, not the size of their particular values. In \emph{Total Order Reproduction} only the \textit{number} of organisms with higher and lower-or-equal fitness determine which organisms are most likely to be reproduced. This is very different for Roulette Wheel Reproduction, where not only the \textit{number}, but also the share of the particular fitness value of the organism in the total fitness of the population is taken into account.\\ 
+In the above equation (\ref{expected number tor}) we see that the expected number of instances of some particular subset $X_i$ found, only depends on (i) the number of organisms with fitness $f_i$ and (ii) the ratio of organism with fitness lower than $f_i$ and the bound on the generation. Furthermore, we see that the function $f$ is absent in equation (\ref{expected number tor}) (cf. equation (\ref{expected number rwr})), hence, only the order between the particular fitness values matters, not the size of their particular values. In \emph{Total Order Reproduction} only the \textit{number} of organisms with higher and lower-or-equal fitness determine which organisms are most likely to be reproduced. This is very different from Roulette Wheel Reproduction, where not only the \textit{number}, but also the share of the particular fitness value of the organism in the total fitness of the population, is taken into account.\\ 
 
 A consequence of carrying out a \emph{Total-Order Reproduction} is that the number of fittest organisms in a generation is expected never to increase. That is, the cardinality $l_n$ of $X_n$ is expected to remain the same in all generations, assuming a crossover and mutation parameter of 0; in \emph{Roulette Wheel Reproduction} this cardinality is expected to keep increasing until the whole generation consists of fittest organisms.
 
 \subsection{Expected Number Control Reproduction}
 
-In the \emph{Expected Number Control Reproduction} technique we reproduce ...
-
-it can be seen as a waekened form of \emph{ellitism} (in `ellitism' the $k$ best organisms to be retained in the next \emph{generation})\footnote{Mitchell 1999: p. 126}
+In the \emph{Expected Number Control Reproduction} technique we reproduce all the organisms that are fitter than the average fitness, and reproduce the others with a probability according to their fitness vs. the average fitness of the population. This reproduction technique can be seen as a weakened form of \emph{ellitism}. In `ellitism' the $k$ best organisms are to be retained in the next generation. When an \emph{Expected Number Control Reproduction} technique is used, it depends on the crossover and mutation parameter, if the organisms fitter than the average fitness, are retained in the next generation.\footnote{Mitchell 1999: p. 126}\\
 
 
-Let $X = \{x_1,...,x_n \}$ be a finite population. Let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-high fitness function} for our population $X$. Define $\mu = \dfrac{\sum^n_{k=1} f(x_k)}{n}$, i.e. average fitness of population. Furthermore, define a floor function $\llcorner . \lrcorner: \mathbb{R} -> \mathbb{Z}$, which returns the integral part of a real number, e.g. $\fl 1.3 \fr = 3$ and $\fl 0.9 \fr = 0$. Do the following procedure for all $x_i \in X$:
+Let $X = \{x_1,...,x_n \}$ be a finite population and let $f: X \rightarrow \mathbb{R}$ be a \emph{fittest-high fitness function} for our population $X$. Furthermore:
+
+\begin{itemize}
+\item Define $\mu = \dfrac{\sum^n_{k=1} f(x_k)}{n}$, i.e. average fitness of population;
+\item Define $\llcorner \; \lrcorner: \mathbb{R} -> \mathbb{Z}$, i.e. a floor function which returns the integral part of a real number, e.g. $\fl 1.3 \fr = 3$ and $\fl 0.9 \fr = 0$.
+\end{itemize}
+
+To carry out \emph{Expected Number Control Reproduction} on population $X$, carry out the following procedure for all $x_i \in X$:\newpage
 
 	\begin{enumerate}
 	\item Calculate $m_i = \dfrac{f(x_i)}{\mu}$;
@@ -209,13 +213,19 @@ Note that in the above procedure we have, that the probability that $x_i$ is rep
 \Prob{x_i} = \min \{ \dfrac{f(x_i)}{\mu}, 1 \}
 \end{equation}
 
-It is clear from the above equation (\ref{probability ENC}) that if some organism has a fitness above average, then it reproduce with probability 1, otherwise, it reproduces with a probability smaller than 1. The expected number copies of a single organism $x_i$ is:
+It is clear from the above equation (\ref{probability ENC}) that if some organism has a fitness above average, then it is reproduced with probability 1, otherwise, it reproduces with a probability smaller than 1. The expected number copies of a single organism $x_i$, found after reproduction, is:
 
 \begin{equation}\label{expectation ENC}
-\Expec{\# x_i} = \fl m_i \fr + m_i - \fl m_i \fr = m_i = \dfrac{f(x_i)}{\mu}
+\Expec{\# x_i} = \fl m_i \fr + m_i - \fl m_i \fr = m_i = \dfrac{f(x_i)}{\mu}.
 \end{equation}
 
-The foregoing equations, (\ref{expectation ENC}) and (\ref{probability ENC}), make it clear why this reproduction technique is called \emph{Expected Number Control}, since this reproduction procedure guarantees that the fittest organisms are \emph{reproduced}. This is however still no \emph{elitisms}, because these fittest organisms can still disappear in the population after 1 round of the recursive genetic algorithm, due to crossover and mutation. Furthermore, from the foregoing, we see that \emph{Expected Number Control} has the nice property that the ratio of the expected number of $x_i$ and of $x_j$, in the next generation, is proportionate to the ratio of their fitnesses, that is:
+This easily gives us the following expected number of elements of some particular subset $X_i \subseteq X$, s.t. $X_i = \{ x \mid x \in X, f(x) = f(x_i) \}$, found after reproduction:
+
+\begin{equation}
+\Expec{ \# \text{ elements of } X_i \text{ found after reproduction}} = \| X_i \| \cdot \Expec{\# x_i} = \| X_i \| \cdot \dfrac{f(x_i)}{\mu},
+\end{equation}
+
+where $\| X_i \|$ is the cardinality of $X_i$, that is the number of elements in some fitness equivalence class, s.t. they  have the same fitness as $x_i$. The equations, (\ref{expectation ENC}) and (\ref{probability ENC}), make it clear why this reproduction technique is called \emph{Expected Number Control}, since this reproduction procedure guarantees that the fittest organisms are \emph{reproduced}. This is however still no \emph{elitisms}, because these fittest organisms can still disappear after reproduction and not become part of the new generation, due to crossover and mutation. Furthermore, from the foregoing, we see that \emph{Expected Number Control} has the nice property that the ratio of the expected number of $x_i$ and of $x_j$, in the next generation, is proportionate to the ratio of their fitnesses, that is:
 
 \begin{equation}\label{Property ENC}
 f(x_i) = r f(x_j) \Rightarrow \Expec{ \# x_i } = r \Expec{ \# x_j },
@@ -239,7 +249,7 @@ where we have $\frac{1}{r}$ to capture that $x_i$ is $r$ times fitter than $x_j$
 \Expec{\# x_i} =  \dfrac{\frac{1}{f(x_i)}}{\mu} = \dfrac{1}{f(x_i) \cdot \mu} = \dfrac{1}{\frac{1}{r} f(x_j) \cdot \mu} = \dfrac{1}{r} \Expec{\# x_j}.
 \end{equation}
 
-A major difference between \emph{Expected Number Control Reproduction} and the other reproduction techniques described in this essay, is that \emph{Expected Number Control} does not demand a bound on the size of the generation, specified before reproduction can be carried out. Moreover, the size of the new generation obtained by \emph{Expected Number Control} can not even be known in advance, because it depends on the (biased) coin flips (i.e. the uniform pick of $r \in [0,1]$) for the left-over non-integer parts of the $m_i$. Furthermore, just as \emph{Roulette Wheel Reproduction}, reproduction by \emph{Expected Number Control} suffers from \emph{premature convergence} and even more severely. If the population that will be reproduced by \emph{Expected Number Control}, has a high fitness variance, then the far outlying fittest organisms, will be reproduced in very large numbers, because their expectation depends (partly) on the mean fitness, meaning the genetic algorithm will, depending on the crossover and mutation parameters, stabilize very early on the optima found in the original random sample population.
+A major difference between \emph{Expected Number Control Reproduction} and the other reproduction techniques described in this essay, is that \emph{Expected Number Control} does not demand a bound on the size of the generation, specified before reproduction can be carried out. Moreover, the size of the new generation obtained by \emph{Expected Number Control} can not even be known in advance, because it depends on the (biased) coin flips (i.e. the uniform pick of $r \in [0,1]$) for the non-integer parts of the $m_i$. Furthermore, just as \emph{Roulette Wheel Reproduction}, reproduction by \emph{Expected Number Control} suffers from \emph{premature convergence} and even more severely. If the population that will be reproduced by \emph{Expected Number Control}, has a high fitness variance, then the far outlying fittest organisms, will be reproduced in very large numbers, because their expectation depends (partly) on the mean fitness, meaning the genetic algorithm will, depending on the crossover and mutation parameters, stabilize very early on the optima found in the original random sample population.
 
 \section{Bibliography}
 
