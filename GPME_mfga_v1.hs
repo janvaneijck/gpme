@@ -12,7 +12,7 @@ import System.Random
 
 
 
--- Types: ---------------------------------------------------
+-- Types: -----------------------------------------------------------------------------
 
 type Seed = Int
 type Bit = Char 
@@ -53,7 +53,8 @@ cumList (p:rest) = (0.0,p) : cumList' p rest where
 bitstringtofloat :: [Char] -> Float
 bitstringtofloat xs = bitstringtofloat' xs (length xs) where
    bitstringtofloat' [] _ = 0
-   bitstringtofloat' (x:xs) count = (bittofloat x)*2^(count-1) + (bitstringtofloat' xs (count-1))
+   bitstringtofloat' (x:xs) count = 
+        (bittofloat x)*2^(count-1) + (bitstringtofloat' xs (count-1))
    bittofloat x = if x == '1' then 1.0 else 0.0
 
 
