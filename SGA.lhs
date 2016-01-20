@@ -11,7 +11,7 @@ Jan van Eijck
 
 Get a random probability (a floating point number in the range 0..1):
 
-> type Prob = Float
+> type Prob = Double 
 
 > getRandomProb :: IO Prob
 > getRandomProb = getStdRandom random
@@ -98,7 +98,7 @@ The selection function keeps track of the sizes of the slots on the
 roulette wheel so that the item at position n has the slot (u,v],
 where `u = sum [prob[0]..prob[n-1]]` and `v = sum [prob[0]..prob[n]]`.
 
-> select :: Float -> [Prob] -> Int
+> select :: Double -> [Prob] -> Int
 > select x xs = sel 0 0 xs where
 >  sel n u [v] = if x <= u+v then n else error "wrong data"
 >  sel n u (v:vs) = if  x <= u+v then n else sel (n+1) (u+v) vs
@@ -191,7 +191,7 @@ From a population to a probability distribution:
 
 Type of fitness function:
 
-> type FF = [Bit] -> Float 
+> type FF = [Bit] -> Double
 
 We will assume that all fitness values are non-negative, and
 that less is better, with 0 counting as a perfect fit.
@@ -224,33 +224,41 @@ take the product of the component pairs and renormalize.
 >    map (\x -> x/total) ps12
 
 Pick a list of parents for forming the next generation, using the
-roulette. We assume here that population size and generation size
-are equal. This can easily be modified when there is good reason
-to do so. 
+roulette.
 
-> pickParents :: Seed -> FF -> Population -> ([[Bit]],[[Bit]])
-> pickParents seed f pop = let
->      (dist,perfects) = fitness f pop
->      n    = popSize pop  -- same as generation size
->      ks   = spin seed n dist       
->    in 
+We do not assume here that population size and generation size
+are equal, so we need a parameter `g` for the generation size,
+so that population size minus `g` gives the number of survivors. 
+
+> pickNextGen :: Seed -> FF -> Int -> Population -> ([[Bit]],[[Bit]],[[Bit]])
+> pickNextGen seed f g pop
+>  | g > popSize pop = error "generation size exceeds population"
+>  | odd g           = error "generation size odd"                    
+>  | otherwise = let
+>      n         = popSize pop
+>      (dist,pf) = fitness f pop
+>      perfects  = map (fst . (pop!!)) pf
+>      ks        = spin seed n dist
+>      selected  = map (fst . (pop!!)) ks
+>      (parents,survivors) = splitAt g selected
+>    in
 >      if perfects /= []
->        then ([], map (fst . (pop!!)) perfects)
->        else (map (fst . (pop!!)) ks, [])
+>        then ([], [], perfects)
+>        else (parents,survivors,[])
 
 Use a list of parents to create a new generation,
 assuming a mutation probability: 
 
-> nextGeneration :: Seed -> Prob -> [[Bit]] -> Population
-> nextGeneration seed mprob bss = let
->     pairs    = pairup bss
->     n        = length (head bss)
->     ks       = nrsR (length pairs) (0,n-1)
->     nextgen  = unpair $ map (uncurry cross) (zip ks pairs)
->     newpairs = zip (makeSeeds seed) nextgen
->     mutgen   = map (\ (x,bs) -> mutation x mprob bs) newpairs
+> nextGeneration :: Seed -> Prob -> [[Bit]] -> [[Bit]] -> Population
+> nextGeneration seed mprob parents survivors = let
+>     pairs     = pairup parents
+>     n         = length (head parents)
+>     ks        = nrsR (length pairs) (0,n-1)
+>     nextgen   = unpair $ map (uncurry cross) (zip ks pairs)
+>     newpairs  = zip (makeSeeds seed) nextgen
+>     offspring = map (\ (x,bs) -> mutation x mprob bs) newpairs
 >   in
->     freqCount mutgen
+>     freqCount (offspring ++ survivors)
 
 This uses auxiliary functions for pairing up and unpairing. 
                  
@@ -265,37 +273,38 @@ This uses auxiliary functions for pairing up and unpairing.
 
 Create the next generation:
        
-> nextGen :: Seed -> FF -> Prob -> Population -> (Bool,Population)
-> nextGen seed f mprob pop = let
+> nextGen :: Seed -> FF -> Prob -> Int -> Population -> (Bool,Population)
+> nextGen seed f mprob g pop = let
 >                [seed1,seed2] = take 2 $ makeSeeds seed
->                (ps,perfects) = pickParents seed1 f pop
+>                (parents,survivors,perfects) = pickNextGen seed1 f g pop
 >              in 
 >                if perfects /= []
 >                   then (True,freqCount perfects)
->                   else (False,nextGeneration seed2 mprob ps)
+>                   else (False,nextGeneration
+>                                 seed2 mprob parents survivors)
 
  
 Evolve a number of generations:
 
-> evolve :: Int -> Seed -> FF -> Prob -> Population -> Population
-> evolve 0 _ _ _ pop = pop
-> evolve n seed f mprob pop = let
+> evolve :: Int -> Seed -> FF -> Prob -> Int -> Population -> Population
+> evolve 0 _ _ _ _ pop = pop
+> evolve n seed f mprob g pop = let
 >      [seed1,seed2] = take 2 $ makeSeeds seed
->      (perfct,newpop) = nextGen seed1 f mprob pop
+>      (perfct,newpop) = nextGen seed1 f mprob g pop
 >    in
->      if perfct then newpop else evolve (n-1) seed2 f mprob newpop
+>      if perfct then newpop else evolve (n-1) seed2 f mprob g newpop
 
 Verbose version:
 
-> evolveVerbose :: Int -> Seed -> FF -> Prob -> Population -> IO ()
-> evolveVerbose n seed f mprob pop = evolveVb n n seed f mprob pop where
->   evolveVb :: Int -> Int -> Seed -> FF -> Float -> Population -> IO ()
->   evolveVb n 0 _ _ _ pop = do
+> evolveVerbose :: Int -> Seed -> FF -> Prob -> Int -> Population -> IO ()
+> evolveVerbose n seed f mprob g pop = evolveVb n n seed f mprob g pop where
+>   evolveVb :: Int -> Int -> Seed -> FF -> Prob -> Int -> Population -> IO ()
+>   evolveVb n 0 _ _ _ _ pop = do
 >                             putStr (show n ++":")
 >                             putStrLn (display pop)
->   evolveVb n k seed f mprob pop = let
+>   evolveVb n k seed f mprob g pop = let
 >      [seed1,seed2] = take 2 $ makeSeeds seed
->      (perfct,newpop) = nextGen seed1 f mprob pop
+>      (perfct,newpop) = nextGen seed1 f mprob g pop
 >    in
 >      do
 >        putStr (show (n-k) ++":")
@@ -303,11 +312,11 @@ Verbose version:
 >        if perfct then do
 >                         putStr (show (n-k+1) ++ " Perfect fit:")
 >                         putStrLn (display newpop)
->                   else evolveVb n (k-1) seed2 f mprob newpop 
+>                   else evolveVb n (k-1) seed2 f mprob g newpop 
 
 Evolve until a perfect fit is found (note that this may run forever): 
 
-> evolveUntilPerfect :: Seed -> FF -> Prob -> Population -> IO ()
+> evolveUntilPerfect :: Seed -> FF -> Prob -> Int -> Population -> IO ()
 > evolveUntilPerfect = evolveVerbose (-1)
 
 > ff1 :: FF
@@ -362,3 +371,9 @@ Random population of given bitlength and population size from seed:
 >    freqCount bitstrings
     
 ---
+
+> fromBts :: [Bit] -> Integer
+> fromBts = fromBs . reverse
+>  where 
+>   fromBs [] = 0
+>   fromBs (b:bs) = fromIntegral b + 2 * (fromBs bs) 
