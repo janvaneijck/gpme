@@ -1,4 +1,4 @@
-module GPME_mfga_v2clone where
+module PWBM_GAforGeneticMatching where
 import System.Random
 
 -- O.F. Tuyt & P.W.B. Michgelsen
@@ -70,20 +70,52 @@ bitstringtofloat xs = bitstringtofloat' xs (length xs) where
    bitstringtofloat' (x:xs) count = (bittofloat x)*2^(count-1) +
                                     (bitstringtofloat' xs (count-1))
    bittofloat x = if x == '1' then 1.0 else 0.0    
+   
+-- The function allocationSplitup creates a list of schools in binary representation
+--  from an allocation (which is one long binary string)                        .
+allocationSplitup [] = []
+allocationSplitup (b1:b2:b3:b4:rest) =  [[b1]++[b2]++[b3]++[b4]] ++
+                                        allocationSplitup rest 
     
-
+-- The function replaceAtIndex replaces the element at index n of ls with item
+replaceAtIndex :: Int -> a -> [a] -> [a]
+replaceAtIndex n item ls = a ++ (item:b) 
+    where (a, (_:b)) = splitAt n ls
 
 -- Genetic Algorithn: -----------------------------------------------------------------
+
 
 -- crossover takes a seed and two lists, transforms the seed to a cut off point 
 --  and returns the results of performing crossover into a list.    
 crossover :: Int -> [a] -> [a] -> [[a]]
-crossover randomnr p1 p2 = let
+crossover randomnr p1 p2 = let 
         maxSize = max (length p1) (length p2)
-        cut = randomnr `mod` (maxSize - 1) + 1
-        (p11, p12) = splitAt cut p1
-        (p21, p22) = splitAt cut p2
+        cut = randomnr `mod` 101
+        --cut = randomnr `mod` (maxSize - 1) + 1
+        (p11, p12) = splitAt (cut*4) p1
+        (p21, p22) = splitAt (cut*4) p2
     in [p11 ++ p22, p21 ++ p12]
+
+    
+    -- New seedscross = randomRange seedCross (0,100) gensize
+
+-- Alternative Crossover. This crossover function randomly switches two students in
+--  some allocation 
+crossoverAlt :: Int -> [a] -> [a] -> [[a]]
+crossoverAlt seed p1 p2 = let
+        p1'   = allocationSplitup p1
+        p2'   = allocationSplitup p2
+        maxSize = max (length p1') (length p2')
+        seeds = map (`mod` maxSize) (take 4 (randoms $ mkStdGen seed :: [Int]))
+        sw11  = p1' !! (seeds !! 0)
+        sw12  = p1' !! (seeds !! 1)
+        sw21  = p2' !! (seeds !! 2)
+        sw22  = p2' !! (seeds !! 3)
+        newp1 = replaceAtIndex (seeds !! 1) sw11 
+                    (replaceAtIndex (seeds !! 0) sw21 p1')
+        newp2 = replaceAtIndex (seeds !! 3) sw21 
+                    (replaceAtIndex (seeds !! 2) sw22 p2')
+       in [concat newp1] ++ [concat newp2]
 
 -- mutationBinary takes a seed, a mutation parameter p and a binary string and flips 
 --  each bit in the string randomly with probability p where the randomness is 
@@ -101,6 +133,19 @@ mutationBinary seed p string = let
             else '1': mutation' restflips restbits
         mutation' (coinflip:restflips) (b:restbits) = 
                 error "mutationBinary ERROR: no binary string as input"
+
+-- Alternative Mutation: This mutation function ran                
+mutationAlt seed p string = let
+    coinflip     = head $ randomRange seed (0.0, 1.0) 1
+    string'      = allocationSplitup string
+    len          = length string'
+    seeds        = take 2 (randoms $ mkStdGen seed :: [Int])
+    newschoolind = ((seeds !! 0) `mod` 10)
+    newschool    = ["0001","0010","0011","0100","0101",
+                    "0110","0111","1000","1001","1010"] !! newschoolind
+    luckystud    = (seeds !! 1) `mod` len
+   in if coinflip < p then concat $ replaceAtIndex luckystud newschool string'
+                      else string
 
 -- The function reproduciton performs the reproduction using a roulette wheel
 --  reproduction technique.
@@ -256,22 +301,23 @@ createGen seed pop gensize cpar mpar fitnessfunction order = let
                                                 (mod' ((fromIntegral gensize)*cpar) 2)
                     crossoverpool = pairUp $ take sizecrossoverpool pool
                     clonepool = drop sizecrossoverpool pool
-                    seedscross = take gensize (randoms $ mkStdGen seedCross)
+                    seedscross = take gensize (randoms $ mkStdGen seedCross)                  
                     seedsmut = map (`mod` 10000) 
                                    (take gensize (randoms $ mkStdGen seedMut :: [Int]))
                 in freqRep $ mutate seedsmut $ 
                         (crossover' seedscross crossoverpool) ++ clonepool 
                         where
                          crossover' _ [] = []
-                         crossover' (s:srest) ((a,b):prest) = (crossover s a b) ++
+                         crossover' (s:srest) ((a,b):prest) = (crossoverAlt s a b) ++
                                                               (crossover' srest prest)
                          mutate _ [] = []
                          mutate (s:srest) (o:orest) = 
-                            mutationBinary s (mpar :: Float) o : mutate srest orest
+                            mutationAlt s (mpar :: Float) o : mutate srest orest 
+                         -- mutationBinary s (mpar :: Float) o : mutate srest orest
 
 -- The function freqRep represents a population of individual organisms as pairs
 -- (organism type, frequency) similar to the type Population.
-freqRep :: (Eq a, Num t) => [a] -> [(a, t)]
+freqRep :: (Eq a) => [a] -> [(a, Int)]
 freqRep [] = []
 freqRep (org:rest) = (org, (count org rest) + 1) :
                       freqRep (filter (\x -> x /= org) rest)
