@@ -9,14 +9,10 @@ Jan van Eijck
 > import Data.List
 
 
-Get a random probability (a floating point number in the range 0..1):
-
 > type Prob = Double 
 
-> getRandomProb :: IO Prob
-> getRandomProb = getStdRandom random
-
-Same from a seed:
+Get a random probability (a floating point number in the range 0..1)
+from a seed:
 
 > type Seed = Int
 
@@ -28,7 +24,7 @@ Generate a list of random seeds:
 > makeSeeds :: Seed -> [Seed]
 > makeSeeds seed = randoms (mkStdGen seed)             
 
-Infinite stream of probabilities from seed
+Infinite stream of probabilities from seed:
 
 > prs :: Seed -> [Prob]
 > prs seed = randoms $ mkStdGen seed
@@ -38,7 +34,6 @@ Collect n random probability numbers in the range 0..1:
 > prbs :: Seed -> Int -> [Prob]
 > prbs seed n = take n $ randoms $ mkStdGen seed
  
-
 Collect n probs in the range 0..1 and return their average: 
 
 > avprbs :: Seed -> Int -> Prob
@@ -67,36 +62,17 @@ Here is some useful code for our toolkit:
 > freqCount xs = -- sortBy (\ (x,_) (y,_) -> compare x y)
 >                 (foldl' addCount [] [(x, 1) | x <- xs])
 
-Use this to classify a list of probabilities according
-to their quartiles. 
-    
-> countQuarts :: [Prob] -> [Count Int]
-> countQuarts = freqCount . map classify
+From a frequency list to a list:
 
-Now we can inspect the quality of our random generator of
-probabilities. 
-
-> prsQurts seed n = countQuarts $ prbs seed n
-
-An example distribution: 
-
-> distrib =
->   [0.1, 0.2, 0.05, 0.15, 0.0, 0.11, 0.07, 0.04, 0.0, 0.12, 0.16] :: [Prob]
-
-This is indeed a distribution: 
-
-> check = sum distrib == 1.0
-
-We assume that the input of `roulette` is a list of probabilities that
-sum to 1.  The output is an Int indicating the element from the
-list that is selected.
-
-> roulette :: Seed -> [Prob] -> Int
-> roulette seed = select (head $ prs seed)
-
-The selection function keeps track of the sizes of the slots on the
-roulette wheel so that the item at position n has the slot (u,v],
-where `u = sum [prob[0]..prob[n-1]]` and `v = sum [prob[0]..prob[n]]`.
+> freq2list :: Ord a => [Count a] -> [a]
+> freq2list = concatMap (\ (x,n) -> (take n $ repeat x)) 
+        
+Next, given a probability value and a probability distribution we want
+to select the portion of the roulette wheel that holds this value. So
+the selection function for our roulette keeps track of the sizes of
+the slots on the roulette wheel so that the item at position n has the
+slot (u,v], where `u = sum [prob[0]..prob[n-1]]` and `v = sum
+[prob[0]..prob[n]]`.
 
 > select :: Double -> [Prob] -> Int
 > select x xs = sel 0 0 xs where
@@ -159,88 +135,116 @@ We can also build in some constraints:
 >                   else if k >= length xs then error "index too large"
 >                   else crossover k (xs,ys)
 
-> type Bit = Int
+We could use bit strings as our chromosomes, but we can easily
+generalize this by adding a modulus parameter:
 
-> mutation :: Seed -> Prob -> [Bit] -> [Bit]
-> mutation seed prob bs = let
->    xs = zip bs (prs seed)
->    f (b,p) = if p < prob then (b + 1) `mod` 2 else b
+> type Allele     = Int
+> type Chromosome = [Allele]
+> type Mod        = Int
+
+> fromChromosome :: Mod -> Chromosome -> Integer
+> fromChromosome m = fromC (fromIntegral m) . reverse where
+>   fromC _ [] = 0
+>   fromC m (a:as) = fromIntegral a + m * (fromC m as)
+
+> toChromosome :: Mod -> Integer -> Chromosome
+> toChromosome m = reverse . toC (fromIntegral m) where
+>   toC _ 0 = []
+>   toC m n = let (q,r) = quotRem n m
+>             in fromIntegral r : toC m q
+ 
+Mutation for chromosomes: mutated alleles get a random new value. 
+
+> mutation :: Seed -> Prob -> Mod -> Chromosome -> Chromosome
+> mutation seed prob m as = let
+>    [seed1,seed2] = take 2 $ makeSeeds seed
+>    xs = zip as (zip (prs seed1) (nrsR seed2 (1,m-1)))
+>    f (a,(p,k)) = if p < prob then (a + k) `mod` m else a
 >  in
 >    map f xs
 
-We aim at an efficient representation of populations with large
-numbers of copies of the same bitlist. Type of a population:
+Type of a population:
 
-> type Population = [Count [Bit]]
+> type Population = [Chromosome]
 
 > display :: Population -> String
 > display = concatMap displayIt where
->   displayIt (bs,n) = " " ++ concatMap show bs ++ " " ++ show n 
+>   displayIt bs = " " ++ concatMap show bs
 
 > popSize :: Population -> Int
-> popSize = sum . (map snd)
-
-From a population to a probability distribution:
-
-> pop2dist :: Population -> [Prob]
-> pop2dist pop = let
->    counts = map snd pop
->    total = sum counts
->  in
->    map (\x -> fromIntegral x / fromIntegral total) counts
+> popSize = length 
 
 Type of fitness function:
 
-> type FF = [Bit] -> Double
+> type FF = Mod -> Chromosome -> Integer 
 
 We will assume that all fitness values are non-negative, and
 that less is better, with 0 counting as a perfect fit.
+
+Sometimes it is useful to powerboost a fitness function, while bearing
+in mind that closer to 0 means closer to perfect. 
+
+> powerBoost :: FF -> Float -> FF
+> powerBoost f k m x = let
+>     y = 1 + fromIntegral (f m x)
+>   in
+>     ceiling $ logBase k y
 
 Fitness distribution of a population: the first member of the
 output gives the distribution, the second member the list of
 indices of the bitlists with a perfect fit.         
 
-> fitness :: FF -> Population -> ([Prob],[Int])
-> fitness f pop = let
->    bss    = map fst pop
->    dist1  = pop2dist pop
->    values = map (\ (bs,_) -> f bs) pop
+> fitness :: FF -> Mod -> Population -> ([Prob],Population)
+> fitness f m pop = let
+>    values = map (f m) pop
 >    maxVal = maximum values
 >    vs     = map (\x -> -x + maxVal + 1) values
 >    total  = sum vs
->    dist2  = map (\ x -> x/total) vs
->    perfects = map snd $ filter (\ (x,_) -> x==0) (zip values [0..])
+>    dist   = map (\ x -> fromIntegral x/ fromIntegral total) vs
+>    perfects = filter (\ x -> f m x == 0) pop
 >  in
->    (distProduct dist1 dist2, perfects)
+>    (dist, perfects)
     
-Product of two distributions of the same length:
-take the product of the component pairs and renormalize. 
+Pick the `m` best elements from a population (not used right now in
+the implementation of pickNextGen). 
 
-> distProduct :: [Prob] -> [Prob] -> [Prob]
-> distProduct ps1 ps2 = let
->    ps12 = map (uncurry (*)) (zip ps1 ps2)
->    total = sum ps12
+> pickBest :: FF -> Mod -> Int -> Population -> Population
+> pickBest f m k candidates = let 
+>    compareFct x y = if f m x < f m y then LT
+>                     else if f m x == f m y then EQ
+>                     else GT
+>    sortedpop = sortBy compareFct candidates
 >  in
->    map (\x -> x/total) ps12
-
+>    take k $ sortedpop
+      
 Pick a list of parents for forming the next generation, using the
 roulette.
 
 We do not assume here that population size and generation size
 are equal, so we need a parameter `g` for the generation size,
-so that population size minus `g` gives the number of survivors. 
+so that population size minus `g` gives the number of survivors.
 
-> pickNextGen :: Seed -> FF -> Int -> Population -> ([[Bit]],[[Bit]],[[Bit]])
-> pickNextGen seed f g pop
->  | g > popSize pop = error "generation size exceeds population"
->  | odd g           = error "generation size odd"                    
+For these survivors we do also use the roulette.  An alternative would
+be to simply pick the best elements from the population for the
+parents (or for the survivors).
+
+> pickNextGen :: Seed
+>                -> FF
+>                -> Mod
+>                -> Int       
+>                -> Population
+>                -> (Population,Population,Population)
+> pickNextGen seed f m k pop
+>  | k > popSize pop = error "generation size exceeds population"
+>  | odd k           = error "generation size odd"                    
 >  | otherwise = let
 >      n         = popSize pop
->      (dist,pf) = fitness f pop
->      perfects  = map (fst . (pop!!)) pf
+>      (dist,perfects) = fitness f m pop
 >      ks        = spin seed n dist
->      selected  = map (fst . (pop!!)) ks
->      (parents,survivors) = splitAt g selected
+>      selected  = map (pop!!) ks
+>      (parents,survivors) = splitAt k selected
+> --    parents = pickBest f m g pop
+> --    survivors = pickBest f m (n-g) pop
 >    in
 >      if perfects /= []
 >        then ([], [], perfects)
@@ -249,16 +253,21 @@ so that population size minus `g` gives the number of survivors.
 Use a list of parents to create a new generation,
 assuming a mutation probability: 
 
-> nextGeneration :: Seed -> Prob -> [[Bit]] -> [[Bit]] -> Population
-> nextGeneration seed mprob parents survivors = let
+> nextGeneration :: Seed
+>                   -> Mod
+>                   -> Prob
+>                   -> Population
+>                   -> Population
+>                   -> Population
+> nextGeneration seed m mprob parents survivors = let
 >     pairs     = pairup parents
 >     n         = length (head parents)
 >     ks        = nrsR (length pairs) (0,n-1)
 >     nextgen   = unpair $ map (uncurry cross) (zip ks pairs)
 >     newpairs  = zip (makeSeeds seed) nextgen
->     offspring = map (\ (x,bs) -> mutation x mprob bs) newpairs
+>     offspring = map (\ (x,bs) -> mutation x mprob m bs) newpairs
 >   in
->     freqCount (offspring ++ survivors)
+>     offspring ++ survivors
 
 This uses auxiliary functions for pairing up and unpairing. 
                  
@@ -273,107 +282,150 @@ This uses auxiliary functions for pairing up and unpairing.
 
 Create the next generation:
        
-> nextGen :: Seed -> FF -> Prob -> Int -> Population -> (Bool,Population)
-> nextGen seed f mprob g pop = let
->                [seed1,seed2] = take 2 $ makeSeeds seed
->                (parents,survivors,perfects) = pickNextGen seed1 f g pop
->              in 
->                if perfects /= []
->                   then (True,freqCount perfects)
->                   else (False,nextGeneration
->                                 seed2 mprob parents survivors)
+> nextGen :: Seed
+>            -> FF
+>            -> Mod
+>            -> Prob
+>            -> Int
+>            -> Population
+>            -> (Bool,Population)
+> nextGen seed f m mprob g pop = let
+>   [seed1,seed2] = take 2 $ makeSeeds seed
+>   (parents,survivors,perfects) = pickNextGen seed1 f m g pop
+>  in 
+>   if perfects /= []
+>     then (True,perfects)
+>     else (False,nextGeneration
+>                 seed2 m mprob parents survivors)
 
  
 Evolve a number of generations:
 
-> evolve :: Int -> Seed -> FF -> Prob -> Int -> Population -> Population
-> evolve 0 _ _ _ _ pop = pop
-> evolve n seed f mprob g pop = let
+> evolve :: Int
+>           -> Seed
+>           -> FF
+>           -> Mod
+>           -> Prob
+>           -> Int
+>           -> Population
+>           -> Population
+> evolve 0 _ _ _ _ _ pop = pop
+> evolve n seed f m mprob g pop = let
 >      [seed1,seed2] = take 2 $ makeSeeds seed
->      (perfct,newpop) = nextGen seed1 f mprob g pop
+>      (perfct,newpop) = nextGen seed1 f m mprob g pop
 >    in
->      if perfct then newpop else evolve (n-1) seed2 f mprob g newpop
+>      if perfct then newpop else evolve (n-1) seed2 f m mprob g newpop
 
 Verbose version:
 
-> evolveVerbose :: Int -> Seed -> FF -> Prob -> Int -> Population -> IO ()
-> evolveVerbose n seed f mprob g pop = evolveVb n n seed f mprob g pop where
->   evolveVb :: Int -> Int -> Seed -> FF -> Prob -> Int -> Population -> IO ()
->   evolveVb n 0 _ _ _ _ pop = do
+> evolveVerbose :: Int
+>                  -> Seed
+>                  -> FF
+>                  -> Mod
+>                  -> Prob
+>                  -> Int
+>                  -> Population
+>                  -> IO ()
+> evolveVerbose n seed f m mprob g pop =
+>   evolveVb n n seed f m mprob g pop where
+>   evolveVb :: Int
+>               -> Int
+>               -> Seed
+>               -> FF
+>               -> Mod
+>               -> Prob
+>               -> Int
+>               -> Population
+>               -> IO ()
+>   evolveVb n 0 _ _ _ _ _ pop = do
 >                             putStr (show n ++":")
 >                             putStrLn (display pop)
->   evolveVb n k seed f mprob g pop = let
+>   evolveVb n k seed f m mprob g pop = let
 >      [seed1,seed2] = take 2 $ makeSeeds seed
->      (perfct,newpop) = nextGen seed1 f mprob g pop
+>      (perfct,newpop) = nextGen seed1 f m mprob g pop
 >    in
 >      do
 >        putStr (show (n-k) ++":")
 >        putStrLn (display pop)
 >        if perfct then do
 >                         putStr (show (n-k+1) ++ " Perfect fit:")
->                         putStrLn (display newpop)
->                   else evolveVb n (k-1) seed2 f mprob g newpop 
+>                         putStrLn (display $ [head newpop])
+>                   else evolveVb n (k-1) seed2 f m mprob g newpop 
 
 Evolve until a perfect fit is found (note that this may run forever): 
 
-> evolveUntilPerfect :: Seed -> FF -> Prob -> Int -> Population -> IO ()
+> evolveUntilPerfect :: Seed
+>                       -> FF
+>                       -> Mod
+>                       -> Prob
+>                       -> Int
+>                       -> Population
+>                       -> IO ()
 > evolveUntilPerfect = evolveVerbose (-1)
 
 > ff1 :: FF
-> ff1 bs = let
->     n = length bs
->     g x = (2^n - 1) - x
+> ff1 m as = let
+>     n = length as
+>     g x = ((fromIntegral m)^n - 1) - x
 >  in
->     g $ fromBits bs 
-   
-
-> fromBits = fromBs . reverse
->  where 
->   fromBs [] = 0
->   fromBs (b:bs) = fromIntegral b + 2 * (fromBs bs) 
-
+>     g $ fromChromosome m as
+  
 Another example:
 
 > ff2 :: FF
-> ff2 = fromBits
+> ff2 = fromChromosome
 
 A third example:
 
 > ff3 :: FF
-> ff3 bs = abs (12345 - fromBits bs)  -- note: at least 14 bits needed for perfect fit
+> ff3 m as = abs (12345 - fromChromosome m as)
+
+Note that at least 14 bits are needed for perfect fit, but shorter
+chromosomes will do if we increase the modulus. 
 
 A fourth example:
 
 > ff4 :: FF
-> ff4 bs = let
->     n = length bs
->     m = quot n 3
->     (bs1,rest) = splitAt m bs
->     (bs2,bs3)  = splitAt m rest
->     x = fromBits bs1
->     y = fromBits bs2
->     z = fromBits bs3
+> ff4 m as = let
+>     n = length as
+>     k = quot n 3
+>     (as1,rest) = splitAt k as
+>     (as2,as3)  = splitAt k rest
+>     x = fromChromosome m as1
+>     y = fromChromosome m as2
+>     z = fromChromosome m as3
 >   in 
 >     x^2 + y^2 + z^2
 
 Example population: 
         
 > population :: Population
-> population = [([1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0],100),([0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1],100)]
+> population = freq2list
+>               [([1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],100),
+>                ([0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],100)]
  
 Random population of given bitlength and population size from seed:
 
-> makeRandomPop :: Seed -> Int -> Int -> Population
-> makeRandomPop seed bitsize popsize = let
+> makeRandomPop :: Seed -> Mod -> Int -> Int -> Population
+> makeRandomPop seed m chromsize popsize = let
 >    seeds = take popsize (makeSeeds seed)
->    bitstrings = map (\ s -> take bitsize (nrsR s (0,1))) seeds
 >  in
->    freqCount bitstrings
+>    map (\ s -> take chromsize (nrsR s (0,m-1))) seeds
     
 ---
 
-> fromBts :: [Bit] -> Integer
-> fromBts = fromBs . reverse
->  where 
->   fromBs [] = 0
->   fromBs (b:bs) = fromIntegral b + 2 * (fromBs bs) 
+> main = do
+>          let thispopsize = 200
+>              thischrsize = 12
+>              thisgensize = 30
+>              thisnr      = 10000
+>              thisff      = powerBoost ff4 3
+>              thismod     = 6
+>              thismprob   = 0.2
+>          seed1       <- getStdRandom random
+>          seed2       <- getStdRandom random            
+>          let thispop = makeRandomPop seed1 thismod thischrsize thispopsize
+>          evolveVerbose thisnr seed2 thisff thismod thismprob thisgensize
+>                        thispop
+
+---
