@@ -1,4 +1,4 @@
-module GPME_mfga_v2clone where
+module GPME_mfga_v2 where
 import System.Random
 
 -- O.F. Tuyt & P.W.B. Michgelsen
