@@ -98,7 +98,7 @@ randomPop seed popsize width height radius nrcircles = let
     seeds = take popsize (randoms $ mkStdGen seed :: [Int])
   in map (\s -> (randomCircles seed width height radius nrcircles,1)) seeds 
 
----------------------------------- GENETIC ALGORITHM -------------------------------
+---------------------------------- INSTANCES FOR THE DIFFERENT IMAGE TYPES -------------------------------
 
 instance Organism ImageBW where
   mutation seed p organism = let
@@ -143,6 +143,7 @@ instance Organism ImageBW where
         constructCircles [] = []
         constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height,5, c `mod` 2 == 1) : constructCircles rest
 
+
 instance Organism ImageY where
   mutation seed p organism = let
         coinflips = randomRange seed (0.0, 1.0) (4 * Data.List.length organism)
@@ -185,6 +186,7 @@ instance Organism ImageY where
     in constructCircles seeds where
         constructCircles [] = []
         constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height,5,fromIntegral c :: Pixel8) : constructCircles rest
+
 
 instance Organism ImageYA where
   mutation seed p organism = let
@@ -233,7 +235,6 @@ instance Organism ImageYA where
         constructCircles (x:y:l:rest) = (x `mod` width,y `mod` height,5,fromIntegral l :: Pixel8,200 :: Pixel8) : constructCircles rest
 
 
-
 instance Organism ImageRGB where
   mutation seed p organism = let
         coinflips = randomRange seed (0.0, 1.0) (6 * Data.List.length organism)
@@ -279,10 +280,17 @@ instance Organism ImageRGB where
         seeds = take (5*nrcircles) (randoms $ mkStdGen seed :: [Int])
     in constructCircles seeds where
         constructCircles [] = []
-        constructCircles (x:y:r:g:b:rest) = (x `mod` width,y `mod` height,5,fromIntegral r :: Pixel8,fromIntegral g :: Pixel8, fromIntegral b :: Pixel8) : constructCircles rest
+        constructCircles (x:y:r:g:b:rest) = (x `mod` width,
+                                                y `mod` height,
+                                                5,
+                                                fromIntegral r :: Pixel8,
+                                                fromIntegral g :: Pixel8, 
+                                                fromIntegral b :: Pixel8)
+                                             : constructCircles rest
 
+--------------------------------------------------- GENETIC ALGORITHM --------------------------------------------
 
--- The function reproduciton performs the reproduction using a roulette wheel
+-- The function reproduction performs the reproduction using a roulette wheel
 -- reproduction technique.
 reproduction :: Organism a => Seed              -- seed
                             -> [(a,Frequency)]  -- population of the previous generation
