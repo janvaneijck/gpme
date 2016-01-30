@@ -49,11 +49,15 @@ iteratedMatch n strat1 strat2 history = iteratedMatch' n history (0,0) where
 
 -- this is the fitness function that tests a strategy against all strategies in the current population, using its
 -- own hypothetical three previous matches
-fitnessPD :: [(String,Int)] -> String -> Float
-fitnessPD pop (g1P1:g1P2:g2P1:g2P2:g3P1:g3P2:stratP1) = recurse pop where
+fitnessPDpop :: [(String,Int)] -> String -> Float
+fitnessPDpop pop (g1P1:g1P2:g2P1:g2P2:g3P1:g3P2:stratP1) = recurse pop where
     starthistory = [[g1P1,g1P2],[g2P1,g2P2],[g3P1,g3P2]]
     recurse [] = 0
     recurse ((stratP2,_):rest) = (fst $ iteratedMatch 100 stratP1 (drop 6 stratP2) starthistory) + recurse rest
+
+fitnessPDtft :: String -> Float
+fitnessPDtft (g1P1:g1P2:g2P1:g2P2:g3P1:g3P2:stratP1) = fst $ iteratedMatch 100 stratP1 (titfortatP2 3) starthistory where
+    starthistory = [[g1P1,g1P2],[g2P1,g2P2],[g3P1,g3P2]]
 
 -- intToChar converts a bit from type Int to type Char
 intToChar :: Int -> Char
@@ -82,3 +86,7 @@ titfortatP2 sizehist = titfortat (sizestring - 1) where
             if head prevgame == '0' then ['0'] else ['1']
         titfortat n = let prevgame = head $ (!!) (possibleHistory sizehist) (sizestring - 1 - n) in 
             if head prevgame == '0' then '0' : titfortat (n-1) else '1' : titfortat (n-1)
+
+
+-- examples:
+--  
