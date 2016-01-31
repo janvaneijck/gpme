@@ -10,10 +10,21 @@ import System.Random
 
 class (Eq a) => Organism a where
     mutation :: Seed -> Parameter -> a -> a
+        -- mutation takes a seed, a mutation parameter and an organism and mutates this organism.
     crossover :: Seed -> a -> a -> [a]
+        -- crossover takes a seed and two organism and returns the two organisms resulting from crossover
+        -- between the two input organisms.
     orgToSeq :: a -> Width -> Height -> Seq [Pixel8]
+        -- orgToSeq takes an organism and de width and height of the to be replicated image, makes all
+        -- shapes in the organism into an image and returns the sequence of pixel information of this image.
     fitness :: a -> Width -> Height -> Seq [Pixel8] -> Int
-    randomCircles :: Seed -> Int -> Width -> Height -> Int -> a
+        -- fitness takes an organism, the width and height of the to be replicated image and the pixel
+        -- information of that image and returns the fitness of the organism with respect to the to be
+        -- replicated image.
+    randomCircles :: Seed -> Width -> Height -> Int -> Int -> a
+        -- randomCircles takes a seed, the width and height of the to be replicated image, the radius
+        -- of the shapes (circles) in the organism and the amount of shapes per organism. It returns a
+        -- random organism (using the given seed) that adhere to the given parameters.
 
 type Seed = Int
 type Parameter = Float
@@ -27,7 +38,6 @@ type ImageY = [(Coordinate, Coordinate, Radius, Pixel8)]
 type ImageYA = [(Coordinate, Coordinate, Radius, Pixel8, Pixel8)]
 type ImageRGB = [(Coordinate, Coordinate, Radius, Pixel8, Pixel8, Pixel8)]
 
--- Y: stands for relative luminance
 
 ---------------------------------- HELPER FUNCTIONS -------------------------------
 
@@ -44,13 +54,6 @@ div' n d = floor ((toRational n) / (toRational d))
 mod' :: (Real a) => a -> a -> a
 mod' n d = n - (fromInteger f) * d where
     f = div' n d
-
--- tripleUp takes a list and pairs up every three elements
-tripleUp :: [a] -> [(a,a,a)]
-tripleUp [] = []
-tripleUp [_] = error "tripleUp ERROR: not a multiple of three in population"
-tripleUp [_,_] = error "tripleUp ERROR: not a multiple of three in population"
-tripleUp (x:y:z:xs) = (x,y,z) : tripleUp xs
 
 -- cumList converts a list of probabilities (summing up to 1) into a list of 
 --  intervals corresponding to the probabilities
@@ -97,6 +100,68 @@ randomPop :: Organism a => Seed -> Int -> Width -> Height -> Int -> Int -> [(a,F
 randomPop seed popsize width height radius nrcircles = let
     seeds = take popsize (randoms $ mkStdGen seed :: [Int])
   in map (\s -> (randomCircles seed width height radius nrcircles,1)) seeds 
+
+-- the imgToSeq functions are here to convert an image of a certain type to a sequence in which all data of the pixels
+-- are stored. One needs different functions for each type, as each pixel type has a different amount of components. There
+-- are functions for a grayscale image (Y), a grayscale image with an alpha channel (YA) and a colour image (RGB).
+imgToSeqY :: Image Pixel8 -> Seq [Pixel8]
+imgToSeqY image = pixelbypixel (width-1) (height-1) where
+    width = imageWidth image
+    height = imageHeight image
+    pixelbypixel 0 0 = let
+            lum = pixelAt image 0 0
+        in singleton [lum]
+    pixelbypixel 0 y = let
+            lum = pixelAt image 0 y
+        in pixelbypixel (width-1) (y-1) |> [lum]
+    pixelbypixel x y = let
+            lum = pixelAt image x y
+        in pixelbypixel (x-1) y |> [lum]
+
+imgToSeqYA :: Image PixelYA8 -> Seq [Pixel8]
+imgToSeqYA image = pixelbypixel (width-1) (height-1) where
+    width = imageWidth image
+    height = imageHeight image
+    pixelbypixel 0 0 = let
+            PixelYA8 lum alpha = pixelAt image 0 0
+        in singleton [lum,alpha]
+    pixelbypixel 0 y = let
+            PixelYA8 lum alpha = pixelAt image 0 y
+        in pixelbypixel (width-1) (y-1) |> [lum,alpha]
+    pixelbypixel x y = let
+            PixelYA8 lum alpha = pixelAt image x y
+        in pixelbypixel (x-1) y |> [lum,alpha]
+
+imgToSeqRGB :: Image PixelRGB8 -> Seq [Pixel8]
+imgToSeqRGB image = pixelbypixel (width-1) (height-1) where
+    width = imageWidth image
+    height = imageHeight image
+    pixelbypixel 0 0 = let
+            PixelRGB8 r g b = pixelAt image 0 0
+        in singleton [r,g,b]
+    pixelbypixel 0 y = let
+            PixelRGB8 r g b = pixelAt image 0 y
+        in pixelbypixel (width-1) (y-1) |> [r,g,b]
+    pixelbypixel x y = let
+            PixelRGB8 r g b = pixelAt image x y
+        in pixelbypixel (x-1) y |> [r,g,b]
+
+-- the seqToImage functions do exactly the opposite of the imgToSeq functions, i.e. converting a sequence with
+-- pixel information to its corresponding image. Again we need one for each type of image.
+seqToImageY :: Seq [Pixel8] -> Width -> Height -> Image Pixel8
+seqToImageY pixels width height = generateImage extractPixels width height where
+    extractPixels x y = grayscale where
+      [grayscale] = index pixels (x+y*width)
+
+seqToImageYA :: Seq [Pixel8] -> Width -> Height -> Image PixelYA8
+seqToImageYA pixels width height = generateImage extractPixels width height where
+    extractPixels x y = PixelYA8 lum alpha where
+      [lum,alpha] = index pixels (x+y*width)
+
+seqToImageRGB :: Seq [Pixel8] -> Width -> Height -> Image PixelRGB8
+seqToImageRGB pixels width height = generateImage extractPixels width height where
+    extractPixels x y = PixelRGB8 r g b where
+      [r,g,b] = index pixels (x+y*width)
 
 ---------------------------------- INSTANCES FOR THE DIFFERENT IMAGE TYPES -------------------------------
 
@@ -288,7 +353,7 @@ instance Organism ImageRGB where
                                                 fromIntegral b :: Pixel8)
                                              : constructCircles rest
 
---------------------------------------------------- GENETIC ALGORITHM --------------------------------------------
+---------------------------------- GENETIC ALGORITHM ---------------------------------
 
 -- The function reproduction performs the reproduction using a roulette wheel
 -- reproduction technique.
@@ -332,8 +397,7 @@ createGen :: Organism a => Seed                 -- seed
                           -> Seq [Pixel8]       -- pixel information of the to be replicated image
                           -> [(a,Frequency)]    -- population for the next generation
 createGen seed pop gensize cpar mpar width height refSeq = let
-        [(seedPool, seedCross, seedMut)] = tripleUp $ map 
-                                           (`mod` 10000)
+        [seedPool, seedCross, seedMut] = map (`mod` 10000)
                                            (take 3 (randoms $ mkStdGen seed :: [Int]))
         (best:pool) = reproduction seedPool pop gensize width height refSeq
         sizecrossoverpool = round $ (fromIntegral gensize)*cpar - 
@@ -366,10 +430,22 @@ evolve seed pop gensize nrgen cpar mpar width height refSeq = let
         evolve' (s:seeds) pop k = evolve' seeds (createGen s pop gensize cpar mpar width height refSeq) (k-1)
 
 
-------------------------------------------- EXAMPLES ----------------------------------------
+----------------------------------- FUNCTIONS TO RUN ----------------------------------------
 
-writeResult :: FilePath -> FilePath -> IO ()
-writeResult outpath refpath = do
+-- writeResult is the evolve function, but now works directly in the IO monad. It reads off the image you
+-- want to replicate, performs the genetic algorithm and then writes the best organism after the set amount
+-- of generations to an image file.
+writeResult :: Seed             -- seed
+                -> Int          -- generation size
+                -> Int          -- number of generations you want the algorithm to run
+                -> Parameter    -- crossover parameter
+                -> Parameter    -- mutation parameter
+                -> Radius       -- radius of the shapes
+                -> Int          -- number of shapes to use in the image
+                -> FilePath     -- filepath on where to save the result of the genetic algorithm
+                -> FilePath     -- filepath for the location of the to be replicated image
+                -> IO ()
+writeResult seed gensize nrgen cpar mpar radius nrshapes outpath refpath = do
     loadedimage <- readPng refpath
     case loadedimage of
         Left errorMsg -> error errorMsg
@@ -378,31 +454,41 @@ writeResult outpath refpath = do
                 ImageY8 sampleImage -> do
                         let width = imageWidth sampleImage
                         let height = imageHeight sampleImage
-                        let outcome = evolve 1 
-                                          [(randomCircles 16465 width height 4 1000 :: ImageY,1),
-                                              (randomCircles 6545 width height 4 1000 :: ImageY,1)] 
-                                          10 2 0.2 0.01 width height (imgToSeqY sampleImage)
+                        let outcome = evolve seed 
+                                          [(randomCircles 16465 width height radius nrshapes :: ImageY,1),
+                                              (randomCircles 6545 width height radius nrshapes :: ImageY,1)] 
+                                          gensize nrgen cpar mpar width height (imgToSeqY sampleImage)
                         writePng outpath (seqToImageY (orgToSeq (fst $ head outcome) width height) width height)
                 ImageYA8 sampleImage -> do
                         let width = imageWidth sampleImage
                         let height = imageHeight sampleImage
-                        let outcome = evolve 1 
-                                          [(randomCircles 16465 width height 4 1000 :: ImageYA,1),
-                                              (randomCircles 6545 width height 4 1000 :: ImageYA,1)] 
-                                          10 2 0.2 0.01 width height (imgToSeqYA sampleImage)
+                        let outcome = evolve seed 
+                                          [(randomCircles 16465 width height radius nrshapes :: ImageYA,1),
+                                              (randomCircles 6545 width height radius nrshapes :: ImageYA,1)] 
+                                          gensize nrgen cpar mpar width height (imgToSeqYA sampleImage)
                         writePng outpath (seqToImageYA (orgToSeq (fst $ head outcome) width height) width height)
                 ImageRGB8 sampleImage -> do
                         let width = imageWidth sampleImage
                         let height = imageHeight sampleImage
-                        let outcome = evolve 1 
-                                          [(randomCircles 16465 width height 4 1000 :: ImageRGB,1),
-                                              (randomCircles 6545 width height 4 1000 :: ImageRGB,1)] 
-                                          10 2 0.2 0.01 width height (imgToSeqRGB sampleImage)
+                        let outcome = evolve seed 
+                                          [(randomCircles 16465 width height radius nrshapes :: ImageRGB,1),
+                                              (randomCircles 6545 width height radius nrshapes :: ImageRGB,1)] 
+                                          gensize nrgen cpar mpar width height (imgToSeqRGB sampleImage)
                         writePng outpath (seqToImageRGB (orgToSeq (fst $ head outcome) width height) width height)
                 otherwise -> error "File not in ImageY8, ImageYA8 or ImageRGB format" 
 
-writeResultBW :: FilePath -> FilePath -> IO ()
-writeResultBW outpath refpath = do
+-- writeResultBW is the same as the function writeResult, but does the job for black-and-white images.
+writeResultBW :: Seed             -- seed
+                -> Int          -- generation size
+                -> Int          -- number of generations you want the algorithm to run
+                -> Parameter    -- crossover parameter
+                -> Parameter    -- mutation parameter
+                -> Radius       -- radius of the shapes
+                -> Int          -- number of shapes to use in the image
+                -> FilePath     -- filepath on where to save the image
+                -> FilePath     -- filepath for the location of the to be replicated image
+                -> IO ()
+writeResultBW seed gensize nrgen cpar mpar radius nrshapes outpath refpath = do
     loadedimage <- readPng refpath
     case loadedimage of
         Left errorMsg -> error errorMsg
@@ -411,72 +497,11 @@ writeResultBW outpath refpath = do
                 ImageY8 sampleImage -> do
                         let width = imageWidth sampleImage
                         let height = imageHeight sampleImage
-                        let outcome = evolve 1 
-                                          [(randomCircles 16465 width height 4 1000 :: ImageBW,1),
-                                              (randomCircles 6545 width height 4 1000 :: ImageBW,1)] 
-                                          10 2 0.2 0.01 width height (imgToSeqY sampleImage)
+                        let outcome = evolve seed 
+                                          [(randomCircles 16465 width height radius nrshapes :: ImageBW,1),
+                                              (randomCircles 6545 width height radius nrshapes :: ImageBW,1)] 
+                                          gensize nrgen cpar mpar width height (imgToSeqY sampleImage)
                         writePng outpath (seqToImageY (orgToSeq (fst $ head outcome) width height) width height)
                 otherwise -> error "File not in ImageY8 format"
 
--- the imgToSeq functions are here to convert an image of a certain type to a sequence in which all data of the pixels
--- are stored. One needs different functions for each type, as each pixel type has a different amount of components. There
--- are functions for a grayscale image (Y), a grayscale image with an alpha channel (YA) and a colour image (RGB).
-imgToSeqY :: Image Pixel8 -> Seq [Pixel8]
-imgToSeqY image = pixelbypixel (width-1) (height-1) where
-    width = imageWidth image
-    height = imageHeight image
-    pixelbypixel 0 0 = let
-            lum = pixelAt image 0 0
-        in singleton [lum]
-    pixelbypixel 0 y = let
-            lum = pixelAt image 0 y
-        in pixelbypixel (width-1) (y-1) |> [lum]
-    pixelbypixel x y = let
-            lum = pixelAt image x y
-        in pixelbypixel (x-1) y |> [lum]
-
-imgToSeqYA :: Image PixelYA8 -> Seq [Pixel8]
-imgToSeqYA image = pixelbypixel (width-1) (height-1) where
-    width = imageWidth image
-    height = imageHeight image
-    pixelbypixel 0 0 = let
-            PixelYA8 lum alpha = pixelAt image 0 0
-        in singleton [lum,alpha]
-    pixelbypixel 0 y = let
-            PixelYA8 lum alpha = pixelAt image 0 y
-        in pixelbypixel (width-1) (y-1) |> [lum,alpha]
-    pixelbypixel x y = let
-            PixelYA8 lum alpha = pixelAt image x y
-        in pixelbypixel (x-1) y |> [lum,alpha]
-
-imgToSeqRGB :: Image PixelRGB8 -> Seq [Pixel8]
-imgToSeqRGB image = pixelbypixel (width-1) (height-1) where
-    width = imageWidth image
-    height = imageHeight image
-    pixelbypixel 0 0 = let
-            PixelRGB8 r g b = pixelAt image 0 0
-        in singleton [r,g,b]
-    pixelbypixel 0 y = let
-            PixelRGB8 r g b = pixelAt image 0 y
-        in pixelbypixel (width-1) (y-1) |> [r,g,b]
-    pixelbypixel x y = let
-            PixelRGB8 r g b = pixelAt image x y
-        in pixelbypixel (x-1) y |> [r,g,b]
-
--- the seqToImage functions do exactly the opposite of the imgToSeq functions, i.e. converting a sequence with
--- pixel information to its corresponding image. Again we need one for each type of image.
-seqToImageY :: Seq [Pixel8] -> Width -> Height -> Image Pixel8
-seqToImageY pixels width height = generateImage extractPixels width height where
-    extractPixels x y = grayscale where
-      [grayscale] = index pixels (x+y*width)
-
-seqToImageYA :: Seq [Pixel8] -> Width -> Height -> Image PixelYA8
-seqToImageYA pixels width height = generateImage extractPixels width height where
-    extractPixels x y = PixelYA8 lum alpha where
-      [lum,alpha] = index pixels (x+y*width)
-
-seqToImageRGB :: Seq [Pixel8] -> Width -> Height -> Image PixelRGB8
-seqToImageRGB pixels width height = generateImage extractPixels width height where
-    extractPixels x y = PixelRGB8 r g b where
-      [r,g,b] = index pixels (x+y*width)
 
