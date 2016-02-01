@@ -206,7 +206,7 @@ instance Organism ImageBW where
         seeds = take (3*nrcircles) (randoms $ mkStdGen seed :: [Int])
     in constructCircles seeds where
         constructCircles [] = []
-        constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height,5, c `mod` 2 == 1) : constructCircles rest
+        constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height, radius, c `mod` 2 == 1) : constructCircles rest
 
 
 instance Organism ImageY where
@@ -250,7 +250,7 @@ instance Organism ImageY where
         seeds = take (3*nrcircles) (randoms $ mkStdGen seed :: [Int])
     in constructCircles seeds where
         constructCircles [] = []
-        constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height,5,fromIntegral c :: Pixel8) : constructCircles rest
+        constructCircles (x:y:c:rest) = (x `mod` width,y `mod` height, radius,fromIntegral c :: Pixel8) : constructCircles rest
 
 
 instance Organism ImageYA where
@@ -297,7 +297,7 @@ instance Organism ImageYA where
         seeds = take (3*nrcircles) (randoms $ mkStdGen seed :: [Int])
     in constructCircles seeds where
         constructCircles [] = []
-        constructCircles (x:y:l:rest) = (x `mod` width,y `mod` height,5,fromIntegral l :: Pixel8,200 :: Pixel8) : constructCircles rest
+        constructCircles (x:y:l:rest) = (x `mod` width,y `mod` height, radius,fromIntegral l :: Pixel8,200 :: Pixel8) : constructCircles rest
 
 
 instance Organism ImageRGB where
@@ -347,7 +347,7 @@ instance Organism ImageRGB where
         constructCircles [] = []
         constructCircles (x:y:r:g:b:rest) = (x `mod` width,
                                                 y `mod` height,
-                                                5,
+                                                radius,
                                                 fromIntegral r :: Pixel8,
                                                 fromIntegral g :: Pixel8, 
                                                 fromIntegral b :: Pixel8)
