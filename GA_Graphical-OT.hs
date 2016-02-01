@@ -229,7 +229,7 @@ instance Organism ImageY where
         (p21, p22) = splitAt cut p2
     in [p11 ++ p22, p21 ++ p12]
 
-  orgToSeq org width height = orgToSeq' org (initialSequence 2 width height) where
+  orgToSeq org width height = orgToSeq' org (initialSequence 1 width height) where
     orgToSeq' [] imSeq = imSeq
     orgToSeq' ((x, y, r, c):rest) imSeq = orgToSeq' rest (updateSeq (circleCoord width height x y r) imSeq) where
         updateSeq [] ss = ss
@@ -243,7 +243,7 @@ instance Organism ImageY where
       in (abs (fromIntegral lum1 - fromIntegral lum2))^3
     compareSequences n = let
         [lum1] = index refSeq n
-        [lum2] = index orgSeq n
+        [lum2] = index orgSeq nrcircles
       in (abs (fromIntegral lum1 - fromIntegral lum2))^3 + compareSequences (n-1)
 
   randomCircles seed width height radius nrcircles = let
